@@ -63,7 +63,7 @@
 | 400 | 请求参数错误 | 缺少必填字段、链接格式错误、播放位置不在 1-5 |
 | 403 | 操作被禁止 | 不在点歌窗口期内 |
 | 404 | 资源不存在 | 歌曲 ID 不存在 |
-| 409 | 冲突 | 歌曲已在本周歌单中 / 本周歌曲已下载 |
+| 409 | 冲突 | 歌曲已在本周歌单中 / 本周歌曲已下载 / 该用户本周已点过（每人每周一首） |
 | 429 | 配额已满 | 本周名额已满 / 当日空位已满 |
 | 500 | 服务器内部错误 | 未知异常 |
 
@@ -89,6 +89,7 @@
 | submitterName | string | ✅ | 提交者姓名 |
 | submitterClass | string | ✅ | 提交者班级 |
 | message | string | ✅ | 留言内容 |
+| uid | string | ❌ | 用户唯一标识（企业微信 userId 等），用于每人每周限点一首 |
 | preferredPlayDate | string | ❌ | 期望播放日期 `YYYY-MM-DD` |
 | preferredPlayPosition | number | ❌ | 期望播放位置 `1-5` |
 
@@ -116,6 +117,9 @@
 
 // 409 — 重复提交
 { "success": false, "code": 409, "message": "该歌曲已在本周歌单中" }
+
+// 409 — 该用户本周已点过
+{ "success": false, "code": 409, "message": "你本周已经点过一首歌了，每人每周限点一首" }
 
 // 429 — 名额已满
 { "success": false, "code": 429, "message": "本周点歌名额已满" }
@@ -159,6 +163,7 @@ const data = await res.json();
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | link | string | ✅ | 网易云音乐链接 |
+| uid | string | ❌ | 用户唯一标识，用于检查本周是否已点过 |
 
 **成功响应** `200`：
 
@@ -172,10 +177,13 @@ const data = await res.json();
     "album": "十一月的萧邦",
     "coverUrl": "https://p1.music.126.net/xxx.jpg",
     "alreadySubmitted": false,
-    "isAvailable": true
+    "isAvailable": true,
+    "hasSubmittedThisWeek": false
   }
 }
 ```
+
+> `hasSubmittedThisWeek`：当传入 `uid` 时返回，表示该用户本周是否已点过歌。未传 `uid` 时为 `false`。
 
 ---
 

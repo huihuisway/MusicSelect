@@ -54,6 +54,7 @@ interface Song {
   submitterName: string;   // 提交者姓名
   submitterClass: string;  // 提交者班级
   message: string;         // 留言内容
+  uid: string | null;      // 用户唯一标识（用于每人每周限点一首）
   submitTime: string;      // 提交时间（ISO 8601）
   weekStart: string;       // 所属周期，播放周周一日期 "YYYY-MM-DD"
   playDate: string | null; // 播放日期 "YYYY-MM-DD"（可选）
@@ -74,6 +75,7 @@ interface Song {
 | submitterName | string | ✅ | 由 AstrBot 传入 |
 | submitterClass | string | ✅ | 由 AstrBot 传入 |
 | message | string | ✅ | 提交者留言 |
+| uid | string | ❌ | 用户唯一标识（AstrBot 用户 ID），用于每人每周限点一首 |
 | submitTime | string | ✅ | ISO 8601 格式，由后端生成 |
 | weekStart | string | ✅ | 播放周期周一日期，由后端计算 |
 | playDate | string | ❌ | 用户期望的播放日期 |

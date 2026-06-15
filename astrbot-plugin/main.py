@@ -424,7 +424,13 @@ class MusicSelectPlugin(star.Star):
     async def _do_check_and_confirm(self, event: AstrMessageEvent, user_id: str, link: str):
         """检查歌曲并进入确认流程"""
         try:
-            result = await self.api.check_song(link)
+            result = await self.api.check_song(link, uid=user_id)
+
+            # 检查用户本周是否已点过歌
+            if result.get("hasSubmittedThisWeek"):
+                self.conversations.clear_user(user_id)
+                await self._send_text(event, "🚫 你本周已经点过一首歌了，每人每周限点一首哦～\n下周再来点吧！")
+                return
 
             # 保存数据
             data = self.conversations.get_data(user_id)
@@ -467,6 +473,7 @@ class MusicSelectPlugin(star.Star):
                 link=data.link,
                 username=data.username,
                 message=data.message,
+                uid=user_id,
                 preferred_play_date=data.play_date,
                 preferred_play_position=data.play_position,
             )

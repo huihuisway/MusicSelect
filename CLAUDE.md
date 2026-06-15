@@ -82,7 +82,7 @@ web/                          # React + Vite + Tailwind (只读展示)
 {
   "songId": "123456", "title": "歌名", "artist": "歌手", "album": "专辑",
   "coverUrl": "封面URL", "submitterName": "姓名", "submitterClass": "班级",
-  "message": "留言", "submitTime": "ISO", "weekStart": "YYYY-MM-DD",
+  "message": "留言", "uid": "用户ID|null", "submitTime": "ISO", "weekStart": "YYYY-MM-DD",
   "playDate": "YYYY-MM-DD|null", "playPosition": "1-5|null", "status": "pending|approved"
 }
 ```

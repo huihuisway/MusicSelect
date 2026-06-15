@@ -77,17 +77,20 @@ class MusicSelectApiClient:
 
     # ========== 歌曲相关 ==========
 
-    async def check_song(self, link: str) -> dict:
+    async def check_song(self, link: str, uid: Optional[str] = None) -> dict:
         """
         检查歌曲是否可提交
 
         Returns:
-            {songId, exists, title, artist, coverUrl, duration}
+            {songId, alreadySubmitted, isAvailable, hasSubmittedThisWeek, title, artist, coverUrl}
         """
+        payload = {"link": link}
+        if uid:
+            payload["uid"] = uid
         return await self._request(
             "POST",
             "/song/check",
-            json={"link": link},
+            json=payload,
         )
 
     async def submit_song(
@@ -95,6 +98,7 @@ class MusicSelectApiClient:
         link: str,
         username: Optional[str] = None,
         message: Optional[str] = None,
+        uid: Optional[str] = None,
         preferred_play_date: Optional[str] = None,
         preferred_play_position: Optional[int] = None,
     ) -> dict:
@@ -106,9 +110,11 @@ class MusicSelectApiClient:
         """
         payload = {"link": link}
         if username:
-            payload["username"] = username
+            payload["submitterName"] = username
         if message:
             payload["message"] = message
+        if uid:
+            payload["uid"] = uid
         if preferred_play_date:
             payload["preferredPlayDate"] = preferred_play_date
         if preferred_play_position:

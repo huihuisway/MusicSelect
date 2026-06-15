@@ -17,7 +17,7 @@ const router = Router();
 // ──────────────────────────────────────────────
 router.post('/submit', async (req, res) => {
   try {
-    const { link, submitterName, submitterClass, message, preferredPlayDate, preferredPlayPosition } = req.body;
+    const { link, submitterName, submitterClass, message, uid, preferredPlayDate, preferredPlayPosition } = req.body;
 
     if (!link || !submitterName || !submitterClass || !message) {
       return res.status(400).json({
@@ -31,6 +31,10 @@ router.post('/submit', async (req, res) => {
     }
 
     const { weekStart } = getCurrentCycle();
+
+    if (uid && countSongs({ weekStart, uid }) >= 1) {
+      return res.status(409).json({ success: false, code: 409, message: '你本周已经点过一首歌了，每人每周限点一首' });
+    }
 
     if (countSongs({ weekStart }) >= (parseInt(process.env.WEEKLY_QUOTA) || 25)) {
       return res.status(429).json({ success: false, code: 429, message: '本周点歌名额已满' });
@@ -75,6 +79,7 @@ router.post('/submit', async (req, res) => {
       submitterName,
       submitterClass,
       message,
+      uid: uid || null,
       submitTime: new Date().toISOString(),
       weekStart,
       playDate: preferredPlayDate || null,
@@ -99,7 +104,7 @@ router.post('/submit', async (req, res) => {
 // ──────────────────────────────────────────────
 router.post('/check', async (req, res) => {
   try {
-    const { link } = req.body;
+    const { link, uid } = req.body;
     if (!link) return res.status(400).json({ success: false, code: 400, message: '缺少 link 字段' });
 
     const songId = parseNeteaseUrl(link);
@@ -111,8 +116,9 @@ router.post('/check', async (req, res) => {
     const { weekStart } = getCurrentCycle();
     const exists = !!findOneSong({ songId, weekStart });
     const available = await checkSongUrl(songId);
+    const hasSubmittedThisWeek = uid ? countSongs({ weekStart, uid }) >= 1 : false;
 
-    res.json({ success: true, data: { songId, title: detail.title, artist: detail.artist, album: detail.album, coverUrl: detail.coverUrl, alreadySubmitted: exists, isAvailable: available } });
+    res.json({ success: true, data: { songId, title: detail.title, artist: detail.artist, album: detail.album, coverUrl: detail.coverUrl, alreadySubmitted: exists, isAvailable: available, hasSubmittedThisWeek } });
   } catch (err) {
     console.error('[POST /check]', err);
     res.status(500).json({ success: false, code: 500, message: err.message });
