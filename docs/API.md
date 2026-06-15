@@ -17,6 +17,7 @@
 - [歌曲接口](#歌曲接口)
   - [POST /song/submit — 提交点歌](#post-songsubmit--提交点歌)
   - [POST /song/check — 检查歌曲](#post-songcheck--检查歌曲)
+  - [GET /song/search — 搜索歌曲](#post-songsearch--搜索歌曲)
   - [GET /song/list — 获取歌曲列表](#get-songlist--获取歌曲列表)
   - [GET /song/current-cycle — 当前周期信息](#get-songcurrent-cycle--当前周期信息)
   - [GET /song/calendar — 日历视图数据](#get-songcalendar--日历视图数据)
@@ -184,6 +185,39 @@ const data = await res.json();
 ```
 
 > `hasSubmittedThisWeek`：当传入 `uid` 时返回，表示该用户本周是否已点过歌。未传 `uid` 时为 `false`。
+
+---
+
+### GET /song/search — 搜索歌曲
+
+通过关键词搜索网易云音乐歌曲。
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| keywords | string | ✅ | 搜索关键词（歌名、歌手等） |
+| limit | number | ❌ | 返回结果数量（默认 5） |
+
+**成功响应** `200`：
+
+```json
+{
+  "success": true,
+  "data": {
+    "results": [
+      {
+        "songId": "123456789",
+        "title": "夜曲",
+        "artist": "周杰伦",
+        "album": "十一月的萧邦",
+        "coverUrl": "https://p1.music.126.net/xxx.jpg",
+        "duration": 245000
+      }
+    ]
+  }
+}
+```
 
 ---
 

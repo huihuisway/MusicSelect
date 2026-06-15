@@ -6,7 +6,7 @@ import {
   getCurrentCycle, isInSubmissionWindow,
   parseNeteaseUrl, formatDate, getMonday,
 } from '../utils/dateUtils.js';
-import { getSongDetail, checkSongUrl } from '../utils/neteaseApi.js';
+import { getSongDetail, checkSongUrl, searchSongs } from '../utils/neteaseApi.js';
 import { downloadAndConvert } from '../utils/songDownloader.js';
 
 import { Router } from 'express';
@@ -121,6 +121,24 @@ router.post('/check', async (req, res) => {
     res.json({ success: true, data: { songId, title: detail.title, artist: detail.artist, album: detail.album, coverUrl: detail.coverUrl, alreadySubmitted: exists, isAvailable: available, hasSubmittedThisWeek } });
   } catch (err) {
     console.error('[POST /check]', err);
+    res.status(500).json({ success: false, code: 500, message: err.message });
+  }
+});
+
+// ──────────────────────────────────────────────
+// GET /api/song/search ─ 搜索歌曲
+// ──────────────────────────────────────────────
+router.get('/search', async (req, res) => {
+  try {
+    const { keywords, limit } = req.query;
+    if (!keywords) {
+      return res.status(400).json({ success: false, code: 400, message: '缺少 keywords 参数' });
+    }
+
+    const results = await searchSongs(keywords, parseInt(limit) || 5);
+    res.json({ success: true, data: { results } });
+  } catch (err) {
+    console.error('[GET /search]', err);
     res.status(500).json({ success: false, code: 500, message: err.message });
   }
 });

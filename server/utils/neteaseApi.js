@@ -39,6 +39,36 @@ export async function getSongDetail(songId) {
 }
 
 // ──────────────────────────────────────────────
+// 搜索歌曲
+// ──────────────────────────────────────────────
+export async function searchSongs(keywords, limit = 5) {
+  const cacheKey = `search_${keywords}_${limit}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const { data } = await axios.get(`${BASE}/search`, {
+      params: { keywords, limit, type: 1 },
+      timeout: 10000,
+    });
+    const songs = data?.result?.songs || [];
+    const results = songs.map((s) => ({
+      songId: String(s.id),
+      title: s.name,
+      artist: (s.ar || []).map((a) => a.name).join(' / '),
+      album: s.al?.name || '未知专辑',
+      coverUrl: s.al?.picUrl || '',
+      duration: s.dt || 0,
+    }));
+    cache.set(cacheKey, results);
+    return results;
+  } catch (err) {
+    console.error(`[neteaseApi] searchSongs("${keywords}")`, err.message);
+    return [];
+  }
+}
+
+// ──────────────────────────────────────────────
 // 获取 MP3 下载链接（320 kbps）
 // ──────────────────────────────────────────────
 export async function getSongUrl(songId) {
