@@ -1,0 +1,9 @@
+node_modules/
+web/node_modules/
+web/dist/
+data/db.json
+downloader/*.mp3
+downloader/*/
+.env
+*.log
+.DS_Store
