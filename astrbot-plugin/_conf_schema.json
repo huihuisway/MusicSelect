@@ -1,0 +1,26 @@
+{
+  "api_base_url": {
+    "description": "后端 API 地址",
+    "type": "string",
+    "hint": "MusicSelect 后端的 API 地址。Docker 部署时需改为主机可达地址，如 http://host.docker.internal:4000/api 或 http://<主机IP>:4000/api",
+    "default": "http://localhost:4000/api"
+  },
+  "timeout": {
+    "description": "请求超时（秒）",
+    "type": "int",
+    "hint": "HTTP 请求超时时间",
+    "default": 10
+  },
+  "search_limit": {
+    "description": "搜索结果数量",
+    "type": "int",
+    "hint": "搜索歌曲时返回的最大结果数",
+    "default": 5
+  },
+  "conversation_timeout": {
+    "description": "对话超时（秒）",
+    "type": "int",
+    "hint": "多步对话的超时时间，默认 600 秒（10 分钟）",
+    "default": 600
+  }
+}

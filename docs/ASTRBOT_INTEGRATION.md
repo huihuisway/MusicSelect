@@ -8,6 +8,7 @@
 
 - [概览](#概览)
 - [环境要求](#环境要求)
+- [插件配置](#插件配置)
 - [用户注册流程](#用户注册流程)
 - [点歌流程](#点歌流程)
 - [评论流程](#评论流程)
@@ -41,6 +42,31 @@
 | MusicSelect 后端 | 运行在可达的 IP/域名，默认端口 4000 |
 | 网络 | AstrBot 所在机器能访问 MusicSelect API（内网即可） |
 | NeteaseCloudMusicApiEnhanced | 运行在 MusicSelect 配置的地址（默认 `localhost:3030`） |
+
+---
+
+## 插件配置
+
+安装插件后，在 AstrBot 管理面板中进入插件设置页面，可配置以下参数：
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `api_base_url` | string | `http://localhost:4000/api` | MusicSelect 后端 API 地址 |
+| `timeout` | int | `10` | HTTP 请求超时时间（秒） |
+| `search_limit` | int | `5` | 搜索结果最大数量 |
+| `conversation_timeout` | int | `600` | 多步对话超时时间（秒） |
+
+### Docker 部署配置
+
+当 AstrBot 运行在 Docker 容器中时，`localhost` 指向容器自身而非宿主机，需要将 `api_base_url` 修改为宿主机可达地址：
+
+| 部署场景 | `api_base_url` 示例 |
+|----------|---------------------|
+| Docker Desktop（macOS/Windows） | `http://host.docker.internal:4000/api` |
+| Linux Docker（同机） | `http://172.17.0.1:4000/api` 或 `http://<宿主机IP>:4000/api` |
+| 跨机器部署 | `http://<后端服务IP>:4000/api` |
+
+> **提示：** 也可在启动 AstrBot 容器时通过 `--add-host` 参数自定义主机名，如 `docker run --add-host musicselect:host-gateway ...`，然后配置为 `http://musicselect:4000/api`。
 
 ---
 
