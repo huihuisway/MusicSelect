@@ -97,6 +97,7 @@ class MusicSelectApiClient:
         self,
         link: str,
         username: Optional[str] = None,
+        user_class: Optional[str] = None,
         message: Optional[str] = None,
         uid: Optional[str] = None,
         preferred_play_date: Optional[str] = None,
@@ -111,6 +112,8 @@ class MusicSelectApiClient:
         payload = {"link": link}
         if username:
             payload["submitterName"] = username
+        if user_class:
+            payload["submitterClass"] = user_class
         if message:
             payload["message"] = message
         if uid:
@@ -191,3 +194,34 @@ class MusicSelectApiClient:
             {weekStart, songs: [...]}
         """
         return await self._request("GET", f"/song/history/{week_start}")
+
+    # ========== 关闭日期 ==========
+
+    async def get_closed_dates(self, week_start: Optional[str] = None) -> list:
+        """
+        获取关闭日期列表
+
+        Returns:
+            [{date, weekStart, reason}, ...]
+        """
+        params = {}
+        if week_start:
+            params["weekStart"] = week_start
+        data = await self._request("GET", "/song/closed-dates", params=params)
+        return data.get("closedDates", [])
+
+    async def add_closed_date(self, date: str, week_start: str, reason: str = "") -> dict:
+        """添加关闭日期"""
+        return await self._request(
+            "POST",
+            "/song/closed-dates",
+            json={"date": date, "weekStart": week_start, "reason": reason},
+        )
+
+    async def remove_closed_date(self, date: str) -> dict:
+        """移除关闭日期"""
+        return await self._request(
+            "DELETE",
+            "/song/closed-dates",
+            json={"date": date},
+        )

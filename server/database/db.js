@@ -18,6 +18,7 @@ const defaultData = {
   comments: [],
   songArchives: [],
   downloadRecords: [],
+  closedDates: [], // [{ date: 'YYYY-MM-DD', weekStart: 'YYYY-MM-DD', reason: '' }]
 };
 
 const adapter = new JSONFile(DB_PATH);
@@ -29,6 +30,7 @@ db.data.songs = db.data.songs || [];
 db.data.comments = db.data.comments || [];
 db.data.songArchives = db.data.songArchives || [];
 db.data.downloadRecords = db.data.downloadRecords || [];
+db.data.closedDates = db.data.closedDates || [];
 await db.write();
 
 // --------------- 辅助 ---------------
@@ -119,4 +121,27 @@ export const addDownloadRecord = (weekStart) => {
 export const resetWeek = (weekStart) => {
   removeComments({ weekStart });
   return save();
+};
+
+// --------------- Closed Dates ---------------
+export const findClosedDates = (weekStart) =>
+  db.data.closedDates.filter((c) => c.weekStart === weekStart);
+
+export const findAllClosedDates = () => db.data.closedDates;
+
+export const isDateClosed = (date) =>
+  db.data.closedDates.some((c) => c.date === date);
+
+export const addClosedDate = (date, weekStart, reason = '') => {
+  if (db.data.closedDates.some((c) => c.date === date)) return false;
+  db.data.closedDates.push({ date, weekStart, reason });
+  save();
+  return true;
+};
+
+export const removeClosedDate = (date) => {
+  const before = db.data.closedDates.length;
+  db.data.closedDates = db.data.closedDates.filter((c) => c.date !== date);
+  if (db.data.closedDates.length !== before) save();
+  return before - db.data.closedDates.length;
 };

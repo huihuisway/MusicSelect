@@ -41,21 +41,20 @@ def _format_short_date(date_str: str) -> str:
 
 # ========== 歌曲信息 ==========
 
-def format_song_info(song_info: dict) -> tuple[str, Optional[str]]:
+def format_song_info(song_info: dict) -> str:
     """
-    格式化歌曲信息（用于确认阶段）
+    格式化歌曲文字信息（不含封面、不含确认提示）
 
     Args:
         song_info: {title, artist, coverUrl, album?, duration?}
 
     Returns:
-        (text, cover_url)
+        纯文本字符串
     """
     title = song_info.get("title", "未知歌曲")
     artist = song_info.get("artist", "未知歌手")
     album = song_info.get("album", "")
     duration = song_info.get("duration", 0)
-    cover_url = song_info.get("coverUrl", "")
 
     lines = [
         f"🎵 {title}",
@@ -68,10 +67,12 @@ def format_song_info(song_info: dict) -> tuple[str, Optional[str]]:
         seconds = (duration % 60000) // 1000 if duration > 1000 else duration % 60
         lines.append(f"⏱ {minutes}:{seconds:02d}")
 
-    lines.append("")
-    lines.append("✅ 回复「确认」提交 | ❌ 回复「取消」放弃")
+    return "\n".join(lines)
 
-    return "\n".join(lines), cover_url
+
+def format_confirm_prompt() -> str:
+    """确认提交提示"""
+    return "✅ 回复「确认」提交 | ❌ 回复「取消」放弃"
 
 
 def format_submit_success(song_data: dict, username: str, message: str) -> str:
@@ -264,23 +265,40 @@ def format_history_songs(history_data: dict) -> str:
 
 # ========== 日期选择提示 ==========
 
-def format_date_prompt(songs_by_day: dict, week_start: str) -> str:
+def format_date_prompt(songs_by_day: dict, week_start: str, closed_dates: list = None) -> str:
     """
-    格式化日期选择提示
+    格式化日期选择提示（带序号，标注关闭日期）
 
     Args:
         songs_by_day: {date: count, ...}
         week_start: 本周起始日期
+        closed_dates: ['YYYY-MM-DD', ...] 被关闭的日期列表
     """
-    lines = ["📅 请选择播放日期（回复日期或「跳过」）：", ""]
+    closed_set = set(closed_dates or [])
+    # 基于 week_start 生成周一到周五的日期列表
+    start_dt = _parse_date(week_start)
+    lines = ["📅 请选择播放日期（回复序号 1-5，回复「跳过」自动分配）：", ""]
 
-    for date_key, count in sorted(songs_by_day.items()):
-        day_label = _format_short_date(date_key)
-        if count >= 5:
-            status = "已满"
-        else:
-            status = f"{count}/5"
-        lines.append(f"  {day_label}  {status}")
+    if start_dt:
+        for i in range(5):  # 周一到周五
+            day_dt = start_dt + timedelta(days=i)
+            day_str = day_dt.strftime("%Y-%m-%d")
+            day_label = _format_short_date(day_str)
+            if day_str in closed_set:
+                status = "🚫 休息"
+            else:
+                count = songs_by_day.get(day_str, 0)
+                status = "已满" if count >= 5 else f"{count}/5"
+            lines.append(f"  {i + 1}. {day_label}  {status}")
+    else:
+        # 兜底：直接使用 songs_by_day 的键
+        for idx, (date_key, count) in enumerate(sorted(songs_by_day.items()), 1):
+            day_label = _format_short_date(date_key)
+            if date_key in closed_set:
+                status = "🚫 休息"
+            else:
+                status = "已满" if count >= 5 else f"{count}/5"
+            lines.append(f"  {idx}. {day_label}  {status}")
 
     return "\n".join(lines)
 
@@ -289,20 +307,28 @@ def format_date_prompt(songs_by_day: dict, week_start: str) -> str:
 
 HELP_TEXT = """📖 点歌帮助
 
-1️⃣ /点歌 - 进入点歌模式，之后可自由输入
+1️⃣ /点歌 - 进入点歌模式
 2️⃣ /搜索 关键词 - 直接搜索歌曲
 3️⃣ /歌单 - 查看本周歌单
 4️⃣ /状态 - 查看点歌状态
 5️⃣ /历史 - 查看历史歌单
 
 💡 进入点歌模式后：
-  · 发送网易云链接 → 直接点歌
-  · 发送歌名/歌手 → 自动搜索
-  · 支持语音消息！
+  · 回复「搜索 歌名」搜索歌曲
+  · 发送网易云链接直接点歌
+  · 搜索结果回复编号选择
+  · 依次填写姓名、班级、留言（均可跳过）
+  · 可选择播放日期和位置（均可跳过）
 
-⏰ 点歌时间：周五 19:00 ~ 周日 20:00
+⏰ 随时可点歌，但当天 12:00 后不能点当天的歌
 📋 每周限额：25 首
-📅 每天最多播放 5 首"""
+📅 每天最多播放 5 首
+
+❄  huisway > 企业微信适配套件-1
+项目MusicSelect是为了解决文件同步问题
+使用本功能即代表你同意遵守MIT协议
+
+[WARN]当前为Pre版本 如遇到问题请移步github提issue"""
 
 
 # ========== 错误消息映射 ==========
@@ -312,11 +338,11 @@ def format_api_error(error_code: int, error_message: str) -> str:
     将 API 错误码映射为用户友好的消息
     """
     error_map = {
-        400: "链接格式错误，请检查后重试",
+        400: error_message,  # 使用后端返回的实际错误信息
         403: error_message,  # 直接使用后端返回的消息（区分不同 403 场景）
         409: error_message,  # 歌曲重复 / 位置占用
-        429: "本周名额已满，请下周再试",
-        500: "服务器开小差了，请稍后重试",
+        429: "满了，等下周提交",
+        500: "服务器被大运创飞了，请稍后重试",
         503: "服务暂时不可用，请稍后重试",
         0: error_message,  # 网络错误等自定义错误
     }
@@ -327,14 +353,14 @@ def format_api_error(error_code: int, error_message: str) -> str:
 # ========== 通用提示 ==========
 
 NOT_IN_SUBMISSION_WINDOW = (
-    "❌ 当前不在点歌时间\n"
+    "❌ 当前不在允许时间\n"
     "⏰ 点歌时间为每周五 19:00 ~ 周日 20:00\n"
     "💡 发送 /状态 查看当前周期信息"
 )
 
 WEEKLY_ALREADY_SUBMITTED = (
-    "❌ 你本周已点过歌了\n"
-    "📅 每周只能点一首歌，下周再来吧"
+    "❌ 你在系统中已经有本周记录了\n"
+    "📅 每人每周只允许提交一次"
 )
 
 CANCELLED = "✅ 已取消"

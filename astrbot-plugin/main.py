@@ -10,6 +10,7 @@ MusicSelect 校园点歌 AstrBot 插件
 import re
 import logging
 from typing import Optional
+from datetime import datetime, timedelta
 
 from astrbot.api import star
 from astrbot.api.event import AstrMessageEvent, filter
@@ -24,14 +25,16 @@ from .intent import (
     resolve_weekday_to_date,
     INTENT_CONFIRM, INTENT_CANCEL, INTENT_SKIP,
     INTENT_DATE_SELECT, INTENT_NUMBER_PICK,
-    INTENT_SEARCH, INTENT_USERNAME, INTENT_MESSAGE,
+    INTENT_SEARCH, INTENT_NAME, INTENT_CLASS,
+    INTENT_MESSAGE,
     INTENT_UNKNOWN,
     STATE_IDLE, STATE_WAITING_INPUT, STATE_WAITING_CONFIRM,
     STATE_WAITING_SEARCH_PICK, STATE_WAITING_USERNAME,
+    STATE_WAITING_CLASS,
     STATE_WAITING_MESSAGE, STATE_WAITING_DATE, STATE_WAITING_POSITION,
 )
 from .message_builder import (
-    format_song_info, format_submit_success,
+    format_song_info, format_confirm_prompt, format_submit_success,
     format_search_results, format_playlist,
     format_cycle_status, format_history_weeks, format_history_songs,
     format_date_prompt, HELP_TEXT,
@@ -91,6 +94,10 @@ class MusicSelectPlugin(star.Star):
             return event.get_message_str().strip()
         return ""
 
+    def _is_admin(self, user_id: str) -> bool:
+        """检查用户是否为管理员"""
+        return bool(self.config.admin_id) and user_id == self.config.admin_id
+
     async def _send_text(self, event: AstrMessageEvent, text: str):
         """发送纯文本消息"""
         await event.send(MessageChain([Plain(text)]))
@@ -116,7 +123,8 @@ class MusicSelectPlugin(star.Star):
         await self._send_text(
             event,
             "🎵 已进入点歌模式\n\n"
-            "请发送网易云音乐链接 或 直接说歌名搜索\n"
+            "💡 回复「搜索 歌名」搜索歌曲\n"
+            "💡 或直接发送网易云音乐链接\n"
             "💡 回复「取消」退出点歌模式"
         )
 
@@ -184,6 +192,109 @@ class MusicSelectPlugin(star.Star):
         """/点歌帮助 - 显示帮助"""
         await self._send_text(event, HELP_TEXT)
 
+    @filter.command("管理")
+    async def cmd_guan_li(self, event: AstrMessageEvent):
+        """/管理 - 管理员命令（关闭/开放日期）"""
+        user_id = self._get_user_id(event)
+        if not self._is_admin(user_id):
+            await self._send_text(event, "🚫 你不是管理员，无法执行此操作")
+            return
+
+        text = self._get_message_text(event)
+        # 去掉命令前缀（兼容 /管理、！管理、管理 等格式）
+        args = re.sub(r'^[/！!]?\s*管理\s*', '', text).strip()
+
+        if not args:
+            # 显示当前状态和帮助
+            try:
+                cycle = await self.api.get_cycle_info()
+                closed = await self.api.get_closed_dates(cycle.get("weekStart", ""))
+                closed_str = "\n    ".join([c["date"] for c in closed]) if closed else "无"
+            except ApiError:
+                closed_str = "（获取失败）"
+
+            await self._send_text(
+                event,
+                f"🔧 管理面板\n\n"
+                f"📌 管理员 ID：{self.config.admin_id}\n"
+                f"📌 本周关闭日期：\n    {closed_str}\n\n"
+                f"💡 命令：\n"
+                f"  /管理 关 MMDD — 关闭指定日期（如 /管理 关 0701）\n"
+                f"  /管理 开 MMDD — 重新开放指定日期"
+            )
+            return
+
+        # 关闭/开启 日期（支持 关/开/关闭/开启）
+        m = re.match(r'^(关|开|关闭|开启)\s*(\d{2,4})?(\d{2})?$', args)
+        if m:
+            action_raw = m.group(1)
+            part1 = m.group(2) or ""
+            part2 = m.group(3) or ""
+
+            # 规范化动作
+            action = "close" if action_raw in ("关", "关闭") else "open"
+
+            # 解析日期
+            date_str_full = part1 + part2
+            if len(date_str_full) == 4:
+                # MMDD 格式
+                year = datetime.now().year
+                month = int(date_str_full[:2])
+                day = int(date_str_full[2:])
+            elif len(date_str_full) == 6:
+                # YYMMDD 格式
+                year = 2000 + int(date_str_full[:2])
+                month = int(date_str_full[2:4])
+                day = int(date_str_full[4:])
+            elif len(date_str_full) == 8:
+                # YYYYMMDD 格式
+                year = int(date_str_full[:4])
+                month = int(date_str_full[4:6])
+                day = int(date_str_full[6:])
+            else:
+                await self._send_text(
+                    event,
+                    "❌ 日期格式错误\n"
+                    "💡 正确格式：/管理 关 0701（7月1日）"
+                )
+                return
+
+            try:
+                target_date = datetime(year, month, day)
+                date_str = target_date.strftime("%Y-%m-%d")
+            except ValueError:
+                await self._send_text(event, f"❌ 日期无效：{month}月{day}日 不存在")
+                return
+
+            try:
+                cycle = await self.api.get_cycle_info()
+                week_start = cycle.get("weekStart", "")
+            except ApiError as e:
+                await self._send_text(event, format_api_error(e.code, e.message))
+                return
+
+            if action == "close":
+                try:
+                    await self.api.add_closed_date(date_str, week_start)
+                    await self._send_text(event, f"✅ 已关闭 {month}月{day}日 的点歌")
+                except ApiError as e:
+                    await self._send_text(event, format_api_error(e.code, e.message))
+            else:
+                try:
+                    await self.api.remove_closed_date(date_str)
+                    await self._send_text(event, f"✅ 已重新开放 {month}月{day}日 的点歌")
+                except ApiError as e:
+                    await self._send_text(event, format_api_error(e.code, e.message))
+            return
+
+        await self._send_text(
+            event,
+            "❌ 无法识别的管理命令\n"
+            "💡 可用命令：\n"
+            "  /管理 关 MMDD — 关闭日期（如 /管理 关 0701）\n"
+            "  /管理 开 MMDD — 开放日期"
+        )
+
     # ================================================================
     # 消息统一处理（链接自动识别 + 自然语言对话）
     # ================================================================
@@ -204,6 +315,10 @@ class MusicSelectPlugin(star.Star):
         if not text:
             return
 
+        # 跳过命令消息（由 @filter.command 处理，避免重复响应）
+        if text.startswith(("/", "！", "!")):
+            return
+
         # 获取当前对话状态
         conv = self.conversations.get_state(user_id)
 
@@ -217,17 +332,26 @@ class MusicSelectPlugin(star.Star):
             await self._send_text(event, "⏰ 对话已超时，请重新执行命令")
             return
 
-        # WAITING_INPUT 状态：检测链接 或 搜索
+        # WAITING_INPUT 状态：检测链接 或 要求「搜索」前缀
         if conv.state == STATE_WAITING_INPUT:
             link_match = re.search(NETEASE_URL_PATTERN, text)
             if link_match:
                 link = link_match.group(0)
                 await self._do_check_and_confirm(event, user_id, link)
-            else:
-                # 当作搜索关键词
-                _, keywords = parse_intent(text, STATE_WAITING_INPUT)
+            elif text.startswith("搜索"):
+                # 去掉「搜索」前缀后作为关键词
+                keywords = text[2:].strip()
                 if keywords:
                     await self._do_search(event, user_id, keywords)
+                else:
+                    await self._send_text(event, "🔍 请提供搜索关键词\n💡 格式：搜索 歌名 或 搜索 歌手 歌名")
+            else:
+                await self._send_text(
+                    event,
+                    "💡 请回复「搜索 歌名」搜索歌曲\n"
+                    "💡 或直接发送网易云音乐链接\n"
+                    "💡 回复「取消」退出点歌模式"
+                )
             return
 
         # 其他活跃状态：检查链接优先（用户可能在对话中发链接）
@@ -272,6 +396,8 @@ class MusicSelectPlugin(star.Star):
             await self._handle_waiting_search_pick(event, user_id, intent, value)
         elif state == STATE_WAITING_USERNAME:
             await self._handle_waiting_username(event, user_id, intent, value)
+        elif state == STATE_WAITING_CLASS:
+            await self._handle_waiting_class(event, user_id, intent, value)
         elif state == STATE_WAITING_MESSAGE:
             await self._handle_waiting_message(event, user_id, intent, value)
         elif state == STATE_WAITING_DATE:
@@ -333,16 +459,29 @@ class MusicSelectPlugin(star.Star):
 
     async def _handle_waiting_username(self, event, user_id, intent, value):
         """WAITING_USERNAME 状态：输入姓名"""
-        if intent == INTENT_USERNAME and value:
+        if intent == INTENT_NAME and value:
             self.conversations.set_data_field(user_id, "username", value)
+            self.conversations.set_state(user_id, STATE_WAITING_CLASS)
+            await self._send_text(event, "🏫 请输入你的班级（如：高三1班，回复「跳过」可不填）")
+        elif intent == INTENT_SKIP:
+            self.conversations.set_data_field(user_id, "username", None)
+            self.conversations.set_state(user_id, STATE_WAITING_CLASS)
+            await self._send_text(event, "🏫 请输入你的班级（回复「跳过」可跳过）")
+        else:
+            await self._send_text(event, "❌ 请输入有效的姓名（20字以内）或回复「跳过」")
+
+    async def _handle_waiting_class(self, event, user_id, intent, value):
+        """WAITING_CLASS 状态：输入班级"""
+        if intent == INTENT_CLASS and value:
+            self.conversations.set_data_field(user_id, "user_class", value)
             self.conversations.set_state(user_id, STATE_WAITING_MESSAGE)
             await self._send_text(event, "💬 请输入留言（20字以内，回复「跳过」可不填）")
         elif intent == INTENT_SKIP:
-            self.conversations.set_data_field(user_id, "username", None)
+            self.conversations.set_data_field(user_id, "user_class", None)
             self.conversations.set_state(user_id, STATE_WAITING_MESSAGE)
             await self._send_text(event, "💬 请输入留言（回复「跳过」可不填）")
         else:
-            await self._send_text(event, "❌ 请输入有效的姓名（20字以内）或回复「跳过」")
+            await self._send_text(event, "❌ 请输入有效的班级（30字以内）或回复「跳过」")
 
     async def _handle_waiting_message(self, event, user_id, intent, value):
         """WAITING_MESSAGE 状态：输入留言"""
@@ -360,6 +499,7 @@ class MusicSelectPlugin(star.Star):
         if intent == INTENT_DATE_SELECT and value:
             # 解析日期
             play_date = value
+            closed_dates = []
             if play_date.startswith("WEEKDAY:"):
                 # 需要根据 weekStart 计算具体日期
                 offset = int(play_date.split(":")[1])
@@ -368,11 +508,16 @@ class MusicSelectPlugin(star.Star):
                     cycle = await self.api.get_cycle_info()
                     week_start = cycle.get("weekStart", "")
                     play_date = resolve_weekday_to_date(offset, week_start)
+                    closed_dates = cycle.get("closedDates", [])
                 except ApiError:
                     await self._send_text(event, "❌ 获取周期信息失败，请重试")
                     return
 
             if play_date:
+                # 检查是否为关闭日期
+                if play_date in closed_dates:
+                    await self._send_text(event, f"🚫 {play_date} 是休息日，不能点歌哦，请选择其他日期")
+                    return
                 self.conversations.set_data_field(user_id, "play_date", play_date)
                 await self._send_text(event, f"📅 已选择 {play_date}，是否指定播放位置？（1-5，回复「跳过」自动分配）")
                 self.conversations.set_state(user_id, STATE_WAITING_POSITION)
@@ -382,7 +527,7 @@ class MusicSelectPlugin(star.Star):
             # 跳过日期选择 → 直接提交
             await self._do_submit(event, user_id)
         else:
-            await self._send_text(event, "💡 请回复日期（如：周一、明天）或「跳过」")
+            await self._send_text(event, "💡 请回复日期（如：1、周一、明天）或「跳过」")
 
     async def _handle_waiting_position(self, event, user_id, intent, value):
         """WAITING_POSITION 状态：选择播放位置"""
@@ -438,9 +583,16 @@ class MusicSelectPlugin(star.Star):
             data.song_info = result
             self.conversations.set_state(user_id, STATE_WAITING_CONFIRM)
 
-            # 格式化并发送
-            text, cover_url = format_song_info(result)
-            await self._send_with_image(event, text, cover_url)
+            # 分三条消息发送
+            # 1. 歌曲信息
+            text = format_song_info(result)
+            await self._send_text(event, text)
+            # 2. 封面图片
+            cover_url = result.get("coverUrl", "")
+            if cover_url:
+                await event.send(MessageChain([Image.fromURL(cover_url)]))
+            # 3. 确认提示
+            await self._send_text(event, format_confirm_prompt())
 
         except ApiError as e:
             self.conversations.clear_user(user_id)
@@ -452,7 +604,8 @@ class MusicSelectPlugin(star.Star):
             cycle = await self.api.get_cycle_info()
             songs_by_day = cycle.get("songsByDay", {})
             week_start = cycle.get("weekStart", "")
-            text = format_date_prompt(songs_by_day, week_start)
+            closed_dates = cycle.get("closedDates", [])
+            text = format_date_prompt(songs_by_day, week_start, closed_dates)
             self.conversations.set_state(user_id, STATE_WAITING_DATE)
             await self._send_text(event, text)
         except ApiError as e:
@@ -472,6 +625,7 @@ class MusicSelectPlugin(star.Star):
             result = await self.api.submit_song(
                 link=data.link,
                 username=data.username,
+                user_class=data.user_class,
                 message=data.message,
                 uid=user_id,
                 preferred_play_date=data.play_date,

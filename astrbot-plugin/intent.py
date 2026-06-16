@@ -18,6 +18,8 @@ INTENT_SKIP = "SKIP"
 INTENT_DATE_SELECT = "DATE_SELECT"
 INTENT_NUMBER_PICK = "NUMBER_PICK"
 INTENT_SEARCH = "SEARCH"
+INTENT_NAME = "NAME"
+INTENT_CLASS = "CLASS"
 INTENT_USERNAME = "USERNAME"
 INTENT_MESSAGE = "MESSAGE"
 INTENT_UNKNOWN = "UNKNOWN"
@@ -29,6 +31,7 @@ STATE_WAITING_INPUT = "WAITING_INPUT"
 STATE_WAITING_CONFIRM = "WAITING_CONFIRM"
 STATE_WAITING_SEARCH_PICK = "WAITING_SEARCH_PICK"
 STATE_WAITING_USERNAME = "WAITING_USERNAME"
+STATE_WAITING_CLASS = "WAITING_CLASS"
 STATE_WAITING_MESSAGE = "WAITING_MESSAGE"
 STATE_WAITING_DATE = "WAITING_DATE"
 STATE_WAITING_POSITION = "WAITING_POSITION"
@@ -110,7 +113,10 @@ def parse_intent(text: str, state: str) -> tuple:
         return _parse_search_pick_state(text)
 
     elif state == STATE_WAITING_USERNAME:
-        return _parse_username_state(text)
+        return _parse_name_state(text)
+
+    elif state == STATE_WAITING_CLASS:
+        return _parse_class_state(text)
 
     elif state == STATE_WAITING_MESSAGE:
         return _parse_message_state(text)
@@ -134,10 +140,12 @@ def parse_intent(text: str, state: str) -> tuple:
 # ========== 各状态的解析逻辑 ==========
 
 def _parse_waiting_input_state(text: str) -> tuple:
-    """WAITING_INPUT 状态（/点歌 后）：任意文本视为搜索关键词或链接"""
-    cleaned = _clean_search_text(text)
-    if cleaned:
-        return (INTENT_SEARCH, cleaned)
+    """WAITING_INPUT 状态（/点歌 后）：必须以「搜索」开头才触发搜索，链接由 on_message 处理"""
+    text = text.strip()
+    # 以「搜索」开头 → 去掉前缀后作为搜索关键词
+    m = re.match(r'^搜索\s*(.+)', text)
+    if m:
+        return (INTENT_SEARCH, m.group(1).strip())
     return (INTENT_UNKNOWN, None)
 
 
@@ -165,14 +173,21 @@ def _parse_search_pick_state(text: str) -> tuple:
     return (INTENT_UNKNOWN, None)
 
 
-def _parse_username_state(text: str) -> tuple:
-    """WAITING_USERNAME 状态：输入姓名+班级"""
-    # 跳过则匿名
+def _parse_name_state(text: str) -> tuple:
+    """WAITING_USERNAME 状态：输入姓名"""
     if _matches_keywords(text, SKIP_KEYWORDS):
         return (INTENT_SKIP, None)
-    # 非跳过则视为姓名输入
     if len(text) <= 20:
-        return (INTENT_USERNAME, text)
+        return (INTENT_NAME, text)
+    return (INTENT_UNKNOWN, None)
+
+
+def _parse_class_state(text: str) -> tuple:
+    """WAITING_CLASS 状态：输入班级"""
+    if _matches_keywords(text, SKIP_KEYWORDS):
+        return (INTENT_SKIP, None)
+    if len(text) <= 30:
+        return (INTENT_CLASS, text)
     return (INTENT_UNKNOWN, None)
 
 
@@ -187,11 +202,16 @@ def _parse_message_state(text: str) -> tuple:
 
 
 def _parse_date_state(text: str) -> tuple:
-    """WAITING_DATE 状态：选择播放日期"""
+    """WAITING_DATE 状态：选择播放日期（支持序号 1-5、周几、相对日期）"""
     if _matches_keywords(text, SKIP_KEYWORDS):
         return (INTENT_SKIP, None)
 
-    # 尝试解析日期
+    # 尝试解析数字 1-5 → 映射为周一到周五
+    num = _extract_number(text)
+    if num is not None and 1 <= num <= 5 and text.strip().isdigit():
+        return (INTENT_DATE_SELECT, f"WEEKDAY:{num - 1}")
+
+    # 尝试解析日期文本
     date_str = _extract_date(text)
     if date_str:
         return (INTENT_DATE_SELECT, date_str)

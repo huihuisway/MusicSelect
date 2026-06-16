@@ -23,3 +23,6 @@ class Config:
 
         # 对话超时（秒），默认 10 分钟
         self.conversation_timeout: int = config.get("conversation_timeout", 600)
+
+        # 管理员 ID（为空则无管理员）
+        self.admin_id: str = config.get("admin_id", "")

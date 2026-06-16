@@ -22,5 +22,11 @@
     "type": "int",
     "hint": "多步对话的超时时间，默认 600 秒（10 分钟）",
     "default": 600
+  },
+  "admin_id": {
+    "description": "管理员 ID",
+    "type": "string",
+    "hint": "管理员的用户 ID，用于执行管理命令（如关闭日期）。留空则无管理员。",
+    "default": ""
   }
 }

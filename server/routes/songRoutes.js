@@ -1,9 +1,10 @@
 import {
   findSongs, findOneSong, addSong, updateSongs,
   countSongs, findArchives, getArchiveWeeks,
+  findClosedDates, isDateClosed, addClosedDate, removeClosedDate,
 } from '../database/db.js';
 import {
-  getCurrentCycle, isInSubmissionWindow,
+  getCurrentCycle, isInSubmissionWindow, getUTC8Now,
   parseNeteaseUrl, formatDate, getMonday,
 } from '../utils/dateUtils.js';
 import { getSongDetail, checkSongUrl, searchSongs } from '../utils/neteaseApi.js';
@@ -19,18 +20,34 @@ router.post('/submit', async (req, res) => {
   try {
     const { link, submitterName, submitterClass, message, uid, preferredPlayDate, preferredPlayPosition } = req.body;
 
-    if (!link || !submitterName || !submitterClass || !message) {
+    if (!link || !submitterName) {
       return res.status(400).json({
         success: false, code: 400,
-        message: '缺少必填字段：link, submitterName, submitterClass, message',
+        message: '缺少必填字段：link, submitterName',
       });
     }
 
-    if (!isInSubmissionWindow()) {
-      return res.status(403).json({ success: false, code: 403, message: '当前不在点歌窗口期内' });
+    // 检查是否点了过去的日期（不再检查窗口期）
+    if (preferredPlayDate) {
+      const now = getUTC8Now();
+      const todayStr = formatDate(now);
+      const noonToday = new Date(now);
+      noonToday.setUTCHours(12, 0, 0, 0);
+
+      if (preferredPlayDate < todayStr) {
+        return res.status(403).json({ success: false, code: 403, message: '不能点过去日期的歌哦' });
+      }
+      if (preferredPlayDate === todayStr && now >= noonToday) {
+        return res.status(403).json({ success: false, code: 403, message: '已过中午 12:00，今天的歌已不能点，请选择明天或之后' });
+      }
     }
 
     const { weekStart } = getCurrentCycle();
+
+    // 检查日期是否被关闭
+    if (preferredPlayDate && isDateClosed(preferredPlayDate)) {
+      return res.status(403).json({ success: false, code: 403, message: `${preferredPlayDate} 已关闭点歌（休息日），请选择其他日期` });
+    }
 
     if (uid && countSongs({ weekStart, uid }) >= 1) {
       return res.status(409).json({ success: false, code: 409, message: '你本周已经点过一首歌了，每人每周限点一首' });
@@ -77,8 +94,8 @@ router.post('/submit', async (req, res) => {
       album: detail.album,
       coverUrl: detail.coverUrl,
       submitterName,
-      submitterClass,
-      message,
+      submitterClass: submitterClass || '',
+      message: message || '',
       uid: uid || null,
       submitTime: new Date().toISOString(),
       weekStart,
@@ -177,9 +194,33 @@ router.get('/list', async (req, res) => {
 router.get('/current-cycle', async (_req, res) => {
   try {
     const cycle = getCurrentCycle();
-    const submitted = countSongs({ weekStart: cycle.weekStart });
+    const { weekStart } = cycle;
+    const submitted = countSongs({ weekStart });
     const quota = parseInt(process.env.WEEKLY_QUOTA) || 25;
-    res.json({ success: true, data: { ...cycle, submittedCount: submitted, weeklyQuota: quota, remaining: quota - submitted } });
+
+    // 计算每天的歌曲数量
+    const songs = findSongs({ weekStart });
+    const songsByDay = {};
+    for (const song of songs) {
+      if (song.playDate) {
+        songsByDay[song.playDate] = (songsByDay[song.playDate] || 0) + 1;
+      }
+    }
+
+    // 获取关闭的日期
+    const closedDates = findClosedDates(weekStart).map((c) => c.date);
+
+    res.json({
+      success: true,
+      data: {
+        ...cycle,
+        songsByDay,
+        closedDates,
+        submittedCount: submitted,
+        weeklyQuota: quota,
+        remaining: quota - submitted,
+      },
+    });
   } catch (err) {
     res.status(500).json({ success: false, code: 500, message: err.message });
   }
@@ -243,6 +284,62 @@ router.get('/stats', async (_req, res) => {
     const submitted = countSongs({ weekStart });
     const quota = parseInt(process.env.WEEKLY_QUOTA) || 25;
     res.json({ success: true, data: { weekStart, weeklyQuota: quota, submittedCount: submitted, remaining: quota - submitted, isOpen: isInSubmissionWindow() } });
+  } catch (err) {
+    res.status(500).json({ success: false, code: 500, message: err.message });
+  }
+});
+
+// ──────────────────────────────────────────────
+// GET /api/closed-dates ─ 获取关闭日期
+// ──────────────────────────────────────────────
+router.get('/closed-dates', async (req, res) => {
+  try {
+    const { weekStart } = req.query;
+    if (weekStart) {
+      const dates = findClosedDates(weekStart);
+      return res.json({ success: true, data: { weekStart, closedDates: dates } });
+    }
+    // 返回所有关闭日期
+    const all = findClosedDates();
+    res.json({ success: true, data: { closedDates: all } });
+  } catch (err) {
+    res.status(500).json({ success: false, code: 500, message: err.message });
+  }
+});
+
+// ──────────────────────────────────────────────
+// POST /api/closed-dates ─ 添加关闭日期
+// ──────────────────────────────────────────────
+router.post('/closed-dates', async (req, res) => {
+  try {
+    const { date, weekStart, reason } = req.body;
+    if (!date || !weekStart) {
+      return res.status(400).json({ success: false, code: 400, message: '缺少 date 或 weekStart' });
+    }
+    const added = addClosedDate(date, weekStart, reason || '');
+    if (!added) {
+      return res.status(409).json({ success: false, code: 409, message: '该日期已关闭' });
+    }
+    res.status(201).json({ success: true, data: { date, weekStart, reason } });
+  } catch (err) {
+    res.status(500).json({ success: false, code: 500, message: err.message });
+  }
+});
+
+// ──────────────────────────────────────────────
+// DELETE /api/closed-dates ─ 移除关闭日期
+// ──────────────────────────────────────────────
+router.delete('/closed-dates', async (req, res) => {
+  try {
+    const { date } = req.body;
+    if (!date) {
+      return res.status(400).json({ success: false, code: 400, message: '缺少 date' });
+    }
+    const removed = removeClosedDate(date);
+    if (!removed) {
+      return res.status(404).json({ success: false, code: 404, message: '该日期未关闭' });
+    }
+    res.json({ success: true, data: { date } });
   } catch (err) {
     res.status(500).json({ success: false, code: 500, message: err.message });
   }
