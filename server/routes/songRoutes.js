@@ -20,10 +20,10 @@ router.post('/submit', async (req, res) => {
   try {
     const { link, submitterName, submitterClass, message, uid, preferredPlayDate, preferredPlayPosition } = req.body;
 
-    if (!link || !submitterName) {
+    if (!link) {
       return res.status(400).json({
         success: false, code: 400,
-        message: '缺少必填字段：link, submitterName',
+        message: '缺少必填字段：link',
       });
     }
 
@@ -93,7 +93,7 @@ router.post('/submit', async (req, res) => {
       artist: detail.artist,
       album: detail.album,
       coverUrl: detail.coverUrl,
-      submitterName,
+      submitterName: submitterName || '',
       submitterClass: submitterClass || '',
       message: message || '',
       uid: uid || null,

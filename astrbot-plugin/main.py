@@ -25,12 +25,10 @@ from .intent import (
     resolve_weekday_to_date,
     INTENT_CONFIRM, INTENT_CANCEL, INTENT_SKIP,
     INTENT_DATE_SELECT, INTENT_NUMBER_PICK,
-    INTENT_SEARCH, INTENT_NAME, INTENT_CLASS,
-    INTENT_MESSAGE,
+    INTENT_SEARCH, INTENT_MESSAGE,
     INTENT_UNKNOWN,
     STATE_IDLE, STATE_WAITING_INPUT, STATE_WAITING_CONFIRM,
-    STATE_WAITING_SEARCH_PICK, STATE_WAITING_USERNAME,
-    STATE_WAITING_CLASS,
+    STATE_WAITING_SEARCH_PICK,
     STATE_WAITING_MESSAGE, STATE_WAITING_DATE, STATE_WAITING_POSITION,
 )
 from .message_builder import (
@@ -394,10 +392,6 @@ class MusicSelectPlugin(star.Star):
             await self._handle_waiting_confirm(event, user_id, intent, value)
         elif state == STATE_WAITING_SEARCH_PICK:
             await self._handle_waiting_search_pick(event, user_id, intent, value)
-        elif state == STATE_WAITING_USERNAME:
-            await self._handle_waiting_username(event, user_id, intent, value)
-        elif state == STATE_WAITING_CLASS:
-            await self._handle_waiting_class(event, user_id, intent, value)
         elif state == STATE_WAITING_MESSAGE:
             await self._handle_waiting_message(event, user_id, intent, value)
         elif state == STATE_WAITING_DATE:
@@ -428,9 +422,9 @@ class MusicSelectPlugin(star.Star):
     async def _handle_waiting_confirm(self, event, user_id, intent, value):
         """WAITING_CONFIRM 状态：等待确认提交"""
         if intent == INTENT_CONFIRM:
-            # 确认 → 进入姓名填写
-            self.conversations.set_state(user_id, STATE_WAITING_USERNAME)
-            await self._send_text(event, "👤 请输入你的姓名+班级（如：高三1班 张三）")
+            # 确认 → 直接进入留言填写
+            self.conversations.set_state(user_id, STATE_WAITING_MESSAGE)
+            await self._send_text(event, "💬 请输入留言（20字以内，回复「跳过」可不填）")
         elif intent == INTENT_SKIP:
             # 跳过确认 = 取消
             self.conversations.clear_user(user_id)
@@ -456,32 +450,6 @@ class MusicSelectPlugin(star.Star):
                 await self._send_text(event, f"❌ 编号超出范围，请输入 1-{len(results)} 之间的数字")
         else:
             await self._send_text(event, f"💡 请回复歌曲编号（1-{len(self.conversations.get_data(user_id).search_results or [])}）或「取消」")
-
-    async def _handle_waiting_username(self, event, user_id, intent, value):
-        """WAITING_USERNAME 状态：输入姓名"""
-        if intent == INTENT_NAME and value:
-            self.conversations.set_data_field(user_id, "username", value)
-            self.conversations.set_state(user_id, STATE_WAITING_CLASS)
-            await self._send_text(event, "🏫 请输入你的班级（如：高三1班，回复「跳过」可不填）")
-        elif intent == INTENT_SKIP:
-            self.conversations.set_data_field(user_id, "username", None)
-            self.conversations.set_state(user_id, STATE_WAITING_CLASS)
-            await self._send_text(event, "🏫 请输入你的班级（回复「跳过」可跳过）")
-        else:
-            await self._send_text(event, "❌ 请输入有效的姓名（20字以内）或回复「跳过」")
-
-    async def _handle_waiting_class(self, event, user_id, intent, value):
-        """WAITING_CLASS 状态：输入班级"""
-        if intent == INTENT_CLASS and value:
-            self.conversations.set_data_field(user_id, "user_class", value)
-            self.conversations.set_state(user_id, STATE_WAITING_MESSAGE)
-            await self._send_text(event, "💬 请输入留言（20字以内，回复「跳过」可不填）")
-        elif intent == INTENT_SKIP:
-            self.conversations.set_data_field(user_id, "user_class", None)
-            self.conversations.set_state(user_id, STATE_WAITING_MESSAGE)
-            await self._send_text(event, "💬 请输入留言（回复「跳过」可不填）")
-        else:
-            await self._send_text(event, "❌ 请输入有效的班级（30字以内）或回复「跳过」")
 
     async def _handle_waiting_message(self, event, user_id, intent, value):
         """WAITING_MESSAGE 状态：输入留言"""
@@ -674,8 +642,6 @@ class MusicSelectPlugin(star.Star):
         try:
             result = await self.api.submit_song(
                 link=data.link,
-                username=data.username,
-                user_class=data.user_class,
                 message=data.message,
                 uid=user_id,
                 preferred_play_date=data.play_date,
@@ -684,9 +650,8 @@ class MusicSelectPlugin(star.Star):
 
             # 提交成功
             self.conversations.clear_user(user_id)
-            username_display = data.username or "未公开姓名班级"
             message_display = data.message or ""
-            text = format_submit_success(result, username_display, message_display)
+            text = format_submit_success(result, message_display)
             await self._send_text(event, text)
 
         except ApiError as e:

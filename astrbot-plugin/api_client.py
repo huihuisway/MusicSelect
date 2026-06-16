@@ -97,8 +97,6 @@ class MusicSelectApiClient:
     async def submit_song(
         self,
         link: str,
-        username: Optional[str] = None,
-        user_class: Optional[str] = None,
         message: Optional[str] = None,
         uid: Optional[str] = None,
         preferred_play_date: Optional[str] = None,
@@ -111,10 +109,6 @@ class MusicSelectApiClient:
             {songId, title, artist, coverUrl, submitTime}
         """
         payload = {"link": link}
-        if username:
-            payload["submitterName"] = username
-        if user_class:
-            payload["submitterClass"] = user_class
         if message:
             payload["message"] = message
         if uid:

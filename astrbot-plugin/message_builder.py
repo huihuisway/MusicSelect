@@ -75,13 +75,12 @@ def format_confirm_prompt() -> str:
     return "✅ 回复「确认」提交 | ❌ 回复「取消」放弃"
 
 
-def format_submit_success(song_data: dict, username: str, message: str) -> str:
+def format_submit_success(song_data: dict, message: str) -> str:
     """
     格式化提交成功消息
 
     Args:
         song_data: {title, artist, ...}
-        username: 提交者姓名
         message: 留言
     """
     title = song_data.get("title", "未知歌曲")
@@ -91,7 +90,6 @@ def format_submit_success(song_data: dict, username: str, message: str) -> str:
         "✅ 点歌成功！",
         "",
         f"🎧 {title} - {artist}",
-        f"👤 {username}",
     ]
     if message:
         lines.append(f"💬 {message}")

@@ -14,8 +14,6 @@ from .intent import (
     STATE_IDLE,
     STATE_WAITING_CONFIRM,
     STATE_WAITING_SEARCH_PICK,
-    STATE_WAITING_USERNAME,
-    STATE_WAITING_CLASS,
     STATE_WAITING_MESSAGE,
     STATE_WAITING_DATE,
     STATE_WAITING_POSITION,
@@ -31,8 +29,6 @@ class ConversationData:
     search_results: Optional[list] = None  # 搜索结果列表
 
     # 用户填写的信息
-    username: Optional[str] = None
-    user_class: Optional[str] = None
     message: Optional[str] = None
     play_date: Optional[str] = None
     play_position: Optional[int] = None

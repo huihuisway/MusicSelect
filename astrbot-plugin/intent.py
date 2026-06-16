@@ -18,9 +18,6 @@ INTENT_SKIP = "SKIP"
 INTENT_DATE_SELECT = "DATE_SELECT"
 INTENT_NUMBER_PICK = "NUMBER_PICK"
 INTENT_SEARCH = "SEARCH"
-INTENT_NAME = "NAME"
-INTENT_CLASS = "CLASS"
-INTENT_USERNAME = "USERNAME"
 INTENT_MESSAGE = "MESSAGE"
 INTENT_UNKNOWN = "UNKNOWN"
 
@@ -30,8 +27,6 @@ STATE_IDLE = "IDLE"
 STATE_WAITING_INPUT = "WAITING_INPUT"
 STATE_WAITING_CONFIRM = "WAITING_CONFIRM"
 STATE_WAITING_SEARCH_PICK = "WAITING_SEARCH_PICK"
-STATE_WAITING_USERNAME = "WAITING_USERNAME"
-STATE_WAITING_CLASS = "WAITING_CLASS"
 STATE_WAITING_MESSAGE = "WAITING_MESSAGE"
 STATE_WAITING_DATE = "WAITING_DATE"
 STATE_WAITING_POSITION = "WAITING_POSITION"
@@ -112,12 +107,6 @@ def parse_intent(text: str, state: str) -> tuple:
     elif state == STATE_WAITING_SEARCH_PICK:
         return _parse_search_pick_state(text)
 
-    elif state == STATE_WAITING_USERNAME:
-        return _parse_name_state(text)
-
-    elif state == STATE_WAITING_CLASS:
-        return _parse_class_state(text)
-
     elif state == STATE_WAITING_MESSAGE:
         return _parse_message_state(text)
 
@@ -170,24 +159,6 @@ def _parse_search_pick_state(text: str) -> tuple:
     if _matches_keywords(text, CONFIRM_KEYWORDS):
         return (INTENT_NUMBER_PICK, 1)
 
-    return (INTENT_UNKNOWN, None)
-
-
-def _parse_name_state(text: str) -> tuple:
-    """WAITING_USERNAME 状态：输入姓名"""
-    if _matches_keywords(text, SKIP_KEYWORDS):
-        return (INTENT_SKIP, None)
-    if len(text) <= 20:
-        return (INTENT_NAME, text)
-    return (INTENT_UNKNOWN, None)
-
-
-def _parse_class_state(text: str) -> tuple:
-    """WAITING_CLASS 状态：输入班级"""
-    if _matches_keywords(text, SKIP_KEYWORDS):
-        return (INTENT_SKIP, None)
-    if len(text) <= 30:
-        return (INTENT_CLASS, text)
     return (INTENT_UNKNOWN, None)
 
 
