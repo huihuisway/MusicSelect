@@ -45,7 +45,8 @@ class MusicSelectApiClient:
         try:
             response = await client.request(method, path, **kwargs)
 
-            if response.status_code == 200:
+            # 处理成功响应（200 或 201）
+            if response.status_code in (200, 201):
                 data = response.json()
                 if data.get("success"):
                     return data.get("data", {})

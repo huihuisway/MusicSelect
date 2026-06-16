@@ -128,6 +128,41 @@ def format_search_results(
     return "\n".join(lines)
 
 
+# ========== 位置选择 ==========
+
+def format_position_selection(date: str, songs: list) -> str:
+    """
+    格式化位置选择提示（显示当天所有位置的状态）
+
+    Args:
+        date: 日期字符串 YYYY-MM-DD
+        songs: 该日期已点的歌曲列表 [{playPosition, title, artist, ...}, ...]
+    """
+    # 创建位置映射
+    position_map = {}
+    for song in songs:
+        pos = song.get("playPosition")
+        if pos:
+            position_map[pos] = song
+
+    lines = [f"📍 {date} 当前位置：", ""]
+
+    for i in range(1, 6):  # 位置 1-5
+        if i in position_map:
+            song = position_map[i]
+            title = song.get("title", "未知")
+            artist = song.get("artist", "未知")
+            lines.append(f"  {i}. 🎵 {title} - {artist}")
+        else:
+            lines.append(f"  {i}. ⬜ (空)")
+
+    lines.append("")
+    lines.append("💡 回复数字选择位置（如：2）")
+    lines.append("💡 回复「跳过」自动分配")
+
+    return "\n".join(lines)
+
+
 # ========== 歌单 ==========
 
 def format_playlist(playlist_data: dict) -> str:
@@ -267,7 +302,7 @@ def format_history_songs(history_data: dict) -> str:
 
 def format_date_prompt(songs_by_day: dict, week_start: str, closed_dates: list = None) -> str:
     """
-    格式化日期选择提示（带序号，标注关闭日期）
+    格式化日期选择提示（带序号、进度条，标注关闭日期和满员）
 
     Args:
         songs_by_day: {date: count, ...}
@@ -285,19 +320,27 @@ def format_date_prompt(songs_by_day: dict, week_start: str, closed_dates: list =
             day_str = day_dt.strftime("%Y-%m-%d")
             day_label = _format_short_date(day_str)
             if day_str in closed_set:
-                status = "🚫 休息"
+                status = "🚫 休息日"
             else:
                 count = songs_by_day.get(day_str, 0)
-                status = "已满" if count >= 5 else f"{count}/5"
+                bar = "█" * count + "░" * (5 - count)
+                if count >= 5:
+                    status = f"{bar} 5/5 已满"
+                else:
+                    status = f"{bar} {count}/5"
             lines.append(f"  {i + 1}. {day_label}  {status}")
     else:
         # 兜底：直接使用 songs_by_day 的键
         for idx, (date_key, count) in enumerate(sorted(songs_by_day.items()), 1):
             day_label = _format_short_date(date_key)
             if date_key in closed_set:
-                status = "🚫 休息"
+                status = "🚫 休息日"
             else:
-                status = "已满" if count >= 5 else f"{count}/5"
+                bar = "█" * count + "░" * (5 - count)
+                if count >= 5:
+                    status = f"{bar} 5/5 已满"
+                else:
+                    status = f"{bar} {count}/5"
             lines.append(f"  {idx}. {day_label}  {status}")
 
     return "\n".join(lines)

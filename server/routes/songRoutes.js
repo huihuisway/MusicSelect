@@ -176,12 +176,11 @@ router.get('/list', async (req, res) => {
       return res.json({ success: true, data: { weekStart: week, count: songs.length, songs } });
     }
 
+    // 本周显示所有歌曲（不再根据窗口期过滤状态）
     const all = findSongs({ weekStart: useWeek });
-    const isOver = !isInSubmissionWindow() && (!week || week === weekStart);
-    const visible = isOver ? all.filter((s) => s.status === 'approved') : all;
-    const songs = date ? visible.filter((s) => s.playDate === date) : visible;
+    const songs = date ? all.filter((s) => s.playDate === date) : all;
 
-    res.json({ success: true, data: { weekStart: useWeek, isSubmissionOver: isOver, count: songs.length, songs } });
+    res.json({ success: true, data: { weekStart: useWeek, count: songs.length, songs } });
   } catch (err) {
     console.error('[GET /list]', err);
     res.status(500).json({ success: false, code: 500, message: err.message });

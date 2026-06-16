@@ -37,7 +37,7 @@ from .message_builder import (
     format_song_info, format_confirm_prompt, format_submit_success,
     format_search_results, format_playlist,
     format_cycle_status, format_history_weeks, format_history_songs,
-    format_date_prompt, HELP_TEXT,
+    format_date_prompt, format_position_selection, HELP_TEXT,
     format_api_error, NOT_IN_SUBMISSION_WINDOW,
     CANCELLED, CONVERSATION_EXPIRED,
 )
@@ -500,6 +500,7 @@ class MusicSelectPlugin(star.Star):
             # 解析日期
             play_date = value
             closed_dates = []
+            songs_by_day = {}
             if play_date.startswith("WEEKDAY:"):
                 # 需要根据 weekStart 计算具体日期
                 offset = int(play_date.split(":")[1])
@@ -509,6 +510,7 @@ class MusicSelectPlugin(star.Star):
                     week_start = cycle.get("weekStart", "")
                     play_date = resolve_weekday_to_date(offset, week_start)
                     closed_dates = cycle.get("closedDates", [])
+                    songs_by_day = cycle.get("songsByDay", {})
                 except ApiError:
                     await self._send_text(event, "❌ 获取周期信息失败，请重试")
                     return
@@ -518,9 +520,16 @@ class MusicSelectPlugin(star.Star):
                 if play_date in closed_dates:
                     await self._send_text(event, f"🚫 {play_date} 是休息日，不能点歌哦，请选择其他日期")
                     return
+
+                # 检查是否已满
+                song_count = songs_by_day.get(play_date, 0)
+                if song_count >= 5:
+                    await self._send_text(event, f"❌ {play_date} 已满（5/5），不能点歌了，请选择其他日期")
+                    return
+
                 self.conversations.set_data_field(user_id, "play_date", play_date)
-                await self._send_text(event, f"📅 已选择 {play_date}，是否指定播放位置？（1-5，回复「跳过」自动分配）")
-                self.conversations.set_state(user_id, STATE_WAITING_POSITION)
+                # 显示位置选择（带已有歌曲列表）
+                await self._ask_position(event, user_id)
             else:
                 await self._send_text(event, "❌ 日期无效，请重新选择或回复「跳过」")
         elif intent == INTENT_SKIP:
@@ -532,6 +541,24 @@ class MusicSelectPlugin(star.Star):
     async def _handle_waiting_position(self, event, user_id, intent, value):
         """WAITING_POSITION 状态：选择播放位置"""
         if intent == INTENT_NUMBER_PICK and value:
+            # 检查位置是否已被占用
+            data = self.conversations.get_data(user_id)
+            play_date = data.play_date
+
+            if play_date:
+                try:
+                    playlist = await self.api.get_playlist()
+                    songs = playlist.get("songs", [])
+                    date_songs = [s for s in songs if s.get("playDate") == play_date]
+                    occupied_positions = {s.get("playPosition") for s in date_songs if s.get("playPosition")}
+
+                    if value in occupied_positions:
+                        await self._send_text(event, f"❌ 位置 {value} 已被占用，请选择其他位置或回复「跳过」")
+                        return
+                except ApiError:
+                    # 获取失败，继续提交（后端会处理）
+                    pass
+
             self.conversations.set_data_field(user_id, "play_position", value)
             await self._do_submit(event, user_id)
         elif intent == INTENT_SKIP:
@@ -610,6 +637,29 @@ class MusicSelectPlugin(star.Star):
             await self._send_text(event, text)
         except ApiError as e:
             # 获取周期信息失败，直接提交（不选日期）
+            await self._do_submit(event, user_id)
+
+    async def _ask_position(self, event: AstrMessageEvent, user_id: str):
+        """询问播放位置选择（显示当天已有歌曲）"""
+        data = self.conversations.get_data(user_id)
+        play_date = data.play_date
+
+        if not play_date:
+            # 没有选择日期，直接提交
+            await self._do_submit(event, user_id)
+            return
+
+        try:
+            # 获取该日期的歌曲列表
+            playlist = await self.api.get_playlist()
+            songs = playlist.get("songs", [])
+            date_songs = [s for s in songs if s.get("playDate") == play_date]
+
+            text = format_position_selection(play_date, date_songs)
+            self.conversations.set_state(user_id, STATE_WAITING_POSITION)
+            await self._send_text(event, text)
+        except ApiError as e:
+            # 获取失败，直接提交（自动分配位置）
             await self._do_submit(event, user_id)
 
     async def _do_submit(self, event: AstrMessageEvent, user_id: str):
