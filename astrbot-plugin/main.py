@@ -1,5 +1,5 @@
 """
-MusicSelect 校园点歌 AstrBot 插件
+MusicSelect musicselect AstrBot 插件
 
 支持方式：
 1. 自动识别消息中的网易云链接
@@ -49,7 +49,7 @@ NETEASE_URL_PATTERN = (
 
 
 class MusicSelectPlugin(star.Star):
-    """校园点歌插件"""
+    """musicselect 插件"""
 
     def __init__(self, context: star.Context, config: Optional[dict] = None):
         super().__init__(context, config)

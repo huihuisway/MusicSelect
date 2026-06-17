@@ -1,6 +1,6 @@
 # MusicSelect — 校园音乐选择工具
 
-基于 Node.js + Express + React + MagicUI 的校园点歌系统。学生通过 **AstrBot 企业微信客服** 提交点歌和评论，前端提供只读展示页面（当前歌单、日历视图、历史歌单、评论）。
+基于 Node.js + Express + React + MagicUI 的 musicselect。学生通过 **AstrBot 企业微信客服** 提交点歌和评论，前端提供只读展示页面（当前歌单、日历视图、历史歌单、评论）。
 
 ## ✨ 功能特性
 
