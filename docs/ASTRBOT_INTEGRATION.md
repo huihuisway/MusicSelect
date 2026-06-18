@@ -133,8 +133,6 @@ if (!checkData.data.isAvailable) {
 **Step 2：提交点歌**
 
 ```javascript
-const user = userStore.get(wxUserId); // { submitterName, submitterClass }
-
 const submitRes = await fetch(`${API_BASE}/api/song/submit`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },

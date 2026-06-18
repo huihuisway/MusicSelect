@@ -154,8 +154,7 @@ interface DownloadRecord {
 │─────────────────│  1:N    │─────────────────│
 │ songId (唯一)    │◄────────│ songId          │
 │ weekStart       │         │ id (唯一)        │
-│ status          │         │ authorName      │
-│ submitterName   │         │ content         │
+│ status          │         │ content         │
 │ ...             │         │ ...             │
 └────────┬────────┘         └─────────────────┘
          │

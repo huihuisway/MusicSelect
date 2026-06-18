@@ -393,8 +393,6 @@ const data = await res.json();
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | songId | string | ✅ | 网易云歌曲 ID |
-| authorName | string | ✅ | 评论者姓名 |
-| authorClass | string | ✅ | 评论者班级 |
 | content | string | ✅ | 评论内容 |
 
 **成功响应** `201 Created`：
@@ -405,8 +403,6 @@ const data = await res.json();
   "data": {
     "id": "c_1718438400000_a1b2c3",
     "songId": "123456789",
-    "authorName": "李四",
-    "authorClass": "高二3班",
     "content": "这首歌太棒了！",
     "createTime": "2026-06-15T14:00:00.000Z"
   }
@@ -427,8 +423,6 @@ curl -X POST http://localhost:4000/api/comment \
   -H "Content-Type: application/json" \
   -d '{
     "songId": "123456789",
-    "authorName": "李四",
-    "authorClass": "高二3班",
     "content": "这首歌太棒了！"
   }'
 ```
@@ -455,8 +449,6 @@ curl -X POST http://localhost:4000/api/comment \
       {
         "id": "c_1718438400000_a1b2c3",
         "songId": "123456789",
-        "authorName": "李四",
-        "authorClass": "高二3班",
         "content": "这首歌太棒了！",
         "createTime": "2026-06-15T14:00:00.000Z"
       }

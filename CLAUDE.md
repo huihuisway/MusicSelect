@@ -91,7 +91,6 @@ web/                          # React + Vite + Tailwind (只读展示)
 ```json
 {
   "id": "c_<timestamp>_<random>", "songId": "123456",
-  "authorName": "姓名", "authorClass": "班级",
   "content": "评论内容", "createTime": "ISO"
 }
 ```
@@ -109,7 +108,7 @@ web/                          # React + Vite + Tailwind (只读展示)
 | `/api/song/stats` | GET | 本周统计 |
 | `/api/song/download/:songId` | GET | 下载单首 MP3 |
 | `/api/song/download` | POST | 批量下载周歌曲 |
-| `/api/comment` | POST | 提交评论 (songId, authorName, authorClass, content) |
+| `/api/comment` | POST | 提交评论 (songId, content) |
 | `/api/comment?songId=x` | GET | 获取评论列表 |
 | `/api/health` | GET | 健康检查 |
 
