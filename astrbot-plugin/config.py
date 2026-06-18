@@ -26,3 +26,6 @@ class Config:
 
         # 管理员 ID（为空则无管理员）
         self.admin_id: str = config.get("admin_id", "")
+
+        # 消息模板覆盖
+        self.message_templates: dict = config.get("message_templates", {})

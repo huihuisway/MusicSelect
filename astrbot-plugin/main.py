@@ -20,6 +20,7 @@ from astrbot.core.message.message_event_result import MessageChain
 from .config import Config
 from .api_client import MusicSelectApiClient, ApiError
 from .conversation import ConversationManager, ConversationData
+from .template_engine import TemplateEngine
 from .intent import (
     parse_intent,
     resolve_weekday_to_date,
@@ -67,6 +68,9 @@ class MusicSelectPlugin(star.Star):
         self.conversations = ConversationManager(
             timeout=self.config.conversation_timeout,
         )
+
+        # 模板引擎
+        self.templates = TemplateEngine(overrides=self.config.message_templates)
 
         logger.info(f"[MusicSelect] 插件已加载，API: {self.config.api_base_url}")
 
@@ -325,6 +329,11 @@ class MusicSelectPlugin(star.Star):
                     await self._send_text(event, format_api_error(e.code, e.message))
             return
 
+        # 模板管理命令
+        if args.startswith("模板"):
+            await self._handle_template_command(event, user_id, args[2:].strip())
+            return
+
         await self._send_text(
             event,
             "❌ 无法识别的管理命令\n"
@@ -332,7 +341,105 @@ class MusicSelectPlugin(star.Star):
             "  /管理 关 MMDD — 关闭日期（如 /管理 关 0701）\n"
             "  /管理 开 MMDD — 开放日期\n"
             "  /管理 跳周 — 跳到下一周并开放点歌\n"
-            "  /管理 撤销跳周 — 撤销跳周操作"
+            "  /管理 撤销跳周 — 撤销跳周操作\n"
+            "  /管理 模板 — 管理消息模板"
+        )
+
+    async def _handle_template_command(self, event: AstrMessageEvent, user_id: str, args: str):
+        """处理模板管理子命令"""
+        if not args or args == "列表":
+            # 列出所有模板（按分类）
+            all_templates = self.templates.list_templates()
+            categories = {}
+            for t in all_templates:
+                categories.setdefault(t["category"], []).append(t)
+
+            lines = ["📝 消息模板列表\n"]
+            for cat, items in sorted(categories.items()):
+                lines.append(f"📂 {cat}:")
+                for item in items:
+                    override_mark = "✏️" if item["is_overridden"] else "  "
+                    lines.append(f"  {override_mark} {item['key']} — {item['description']}")
+                lines.append("")
+            lines.append("💡 /管理 模板 查看 <key> — 查看模板详情")
+            lines.append("💡 /管理 模板 修改 <key> <新模板> — 修改模板")
+            lines.append("💡 /管理 模板 重置 <key> — 重置为默认")
+            lines.append("💡 /管理 模板 预览 <key> — 预览渲染效果")
+            await self._send_text(event, "\n".join(lines))
+            return
+
+        parts = args.split(maxsplit=2)
+        sub_cmd = parts[0] if parts else ""
+
+        if sub_cmd == "查看" and len(parts) >= 2:
+            key = parts[1]
+            tdef = self.templates.get_definition(key)
+            if not tdef:
+                await self._send_text(event, f"❌ 未知模板: {key}")
+                return
+
+            current = self.templates.get_raw(key)
+            default = tdef.default
+            is_overridden = current != default
+
+            lines = [f"📝 模板: {key}", f"📖 {tdef.description}", ""]
+            lines.append(f"当前值{'（已覆盖）' if is_overridden else '（默认）'}:")
+            lines.append(f"  {current}")
+            if is_overridden:
+                lines.append(f"\n默认值:")
+                lines.append(f"  {default}")
+            if tdef.variables:
+                lines.append(f"\n可用变量:")
+                for v in tdef.variables:
+                    lines.append(f"  {{{v.name}}} — {v.description}（例: {v.example}）")
+
+            await self._send_text(event, "\n".join(lines))
+            return
+
+        if sub_cmd == "预览" and len(parts) >= 2:
+            key = parts[1]
+            preview = self.templates.preview(key)
+            await self._send_text(event, f"👀 模板预览 [{key}]:\n\n{preview}")
+            return
+
+        if sub_cmd == "修改" and len(parts) >= 3:
+            key = parts[1]
+            new_template = parts[2]
+
+            is_valid, errors = self.templates.validate(key, new_template)
+            if not is_valid:
+                await self._send_text(event, f"❌ 模板验证失败:\n" + "\n".join(errors))
+                return
+
+            if self.templates.update(key, new_template):
+                # TODO: 持久化到配置
+                await self._send_text(event, f"✅ 模板 {key} 已更新\n\n预览:\n{self.templates.preview(key)}")
+            else:
+                await self._send_text(event, f"❌ 模板更新失败")
+            return
+
+        if sub_cmd == "重置" and len(parts) >= 2:
+            key = parts[1]
+            if key == "全部":
+                self.templates.reset_all()
+                await self._send_text(event, "✅ 所有模板已重置为默认值")
+            else:
+                if self.templates.reset(key):
+                    await self._send_text(event, f"✅ 模板 {key} 已重置为默认值")
+                else:
+                    await self._send_text(event, f"❌ 未知模板: {key}")
+            return
+
+        await self._send_text(
+            event,
+            "❌ 无法识别的模板命令\n"
+            "💡 可用命令：\n"
+            "  /管理 模板 — 列出所有模板\n"
+            "  /管理 模板 查看 <key> — 查看模板详情\n"
+            "  /管理 模板 预览 <key> — 预览渲染效果\n"
+            "  /管理 模板 修改 <key> <新模板> — 修改模板\n"
+            "  /管理 模板 重置 <key> — 重置为默认\n"
+            "  /管理 模板 重置 全部 — 重置所有模板"
         )
 
     # ================================================================
