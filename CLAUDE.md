@@ -69,7 +69,7 @@ web/                          # React + Vite + Tailwind (只读展示)
 - **无鉴权**：内网信任，AstrBot 直接调用 API
 - **无 IP 限流 / 无验证码**：已完全移除
 - **无后台管理 / 无网页提交**：所有写入操作由 AstrBot 完成
-- **用户身份**：AstrBot 传递 `submitterName` + `submitterClass`，后端信任
+- **用户身份**：AstrBot 通过 `uid` 标识用户，后端信任
 - **评论模型**：独立 Comments 集合，一首歌可有多条评论
 - **所有时间基于 UTC+8 (北京时间)**
 - **周期规则**：点歌窗口周五 19:00 — 周日 20:00，播放周期下周一至周五
@@ -81,7 +81,7 @@ web/                          # React + Vite + Tailwind (只读展示)
 ```json
 {
   "songId": "123456", "title": "歌名", "artist": "歌手", "album": "专辑",
-  "coverUrl": "封面URL", "submitterName": "姓名", "submitterClass": "班级",
+  "coverUrl": "封面URL",
   "message": "留言", "uid": "用户ID|null", "submitTime": "ISO", "weekStart": "YYYY-MM-DD",
   "playDate": "YYYY-MM-DD|null", "playPosition": "1-5|null", "status": "pending|approved"
 }
@@ -100,7 +100,7 @@ web/                          # React + Vite + Tailwind (只读展示)
 
 | 接口 | 方法 | 用途 |
 |------|------|------|
-| `/api/song/submit` | POST | 提交点歌 (link, submitterName, submitterClass, message, ?playDate, ?playPosition) |
+| `/api/song/submit` | POST | 提交点歌 (link, ?message, ?playDate, ?playPosition) |
 | `/api/song/check` | POST | 检查歌曲 (link) → 歌曲信息 + 是否已提交 + 是否可下载 |
 | `/api/song/list` | GET | 歌曲列表 (?week, ?date) |
 | `/api/song/current-cycle` | GET | 当前周期 + 倒计时 |

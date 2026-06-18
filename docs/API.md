@@ -87,9 +87,7 @@
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | link | string | ✅ | 网易云音乐链接 |
-| submitterName | string | ✅ | 提交者姓名 |
-| submitterClass | string | ✅ | 提交者班级 |
-| message | string | ✅ | 留言内容 |
+| message | string | ❌ | 留言内容 |
 | uid | string | ❌ | 用户唯一标识（企业微信 userId 等），用于每人每周限点一首 |
 | preferredPlayDate | string | ❌ | 期望播放日期 `YYYY-MM-DD` |
 | preferredPlayPosition | number | ❌ | 期望播放位置 `1-5` |
@@ -133,8 +131,6 @@ curl -X POST http://localhost:4000/api/song/submit \
   -H "Content-Type: application/json" \
   -d '{
     "link": "https://music.163.com/song?id=123456789",
-    "submitterName": "张三",
-    "submitterClass": "高三1班",
     "message": "祝大家考试顺利！"
   }'
 ```
@@ -145,8 +141,6 @@ const res = await fetch('http://localhost:4000/api/song/submit', {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     link: 'https://music.163.com/song?id=123456789',
-    submitterName: '张三',
-    submitterClass: '高三1班',
     message: '祝大家考试顺利！',
   }),
 });
@@ -248,8 +242,6 @@ const data = await res.json();
         "artist": "周杰伦",
         "album": "十一月的萧邦",
         "coverUrl": "https://p1.music.126.net/xxx.jpg",
-        "submitterName": "张三",
-        "submitterClass": "高三1班",
         "message": "祝大家考试顺利！",
         "submitTime": "2026-06-13T19:30:00.000Z",
         "weekStart": "2026-06-15",

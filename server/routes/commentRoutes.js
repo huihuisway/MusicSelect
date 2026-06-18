@@ -7,12 +7,12 @@ const router = Router();
 // ──────────────────────────────────────────────
 router.post('/', async (req, res) => {
   try {
-    const { songId, authorName, authorClass, content } = req.body;
+    const { songId, content } = req.body;
 
-    if (!songId || !authorName || !authorClass || !content) {
+    if (!songId || !content) {
       return res.status(400).json({
         success: false, code: 400,
-        message: '缺少必填字段：songId, authorName, authorClass, content',
+        message: '缺少必填字段：songId, content',
       });
     }
 
@@ -24,8 +24,6 @@ router.post('/', async (req, res) => {
     const comment = {
       id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       songId,
-      authorName,
-      authorClass,
       content,
       createTime: new Date().toISOString(),
     };

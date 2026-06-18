@@ -70,56 +70,6 @@
 
 ---
 
-## 用户注册流程
-
-首次使用时，Bot 需要获取用户的班级和姓名，后续所有操作都携带这两个信息。
-
-### 状态管理
-
-建议在 AstrBot 插件中维护用户状态：
-
-```
-未注册 → 等待班级姓名输入 → 已注册
-```
-
-### 交互流程
-
-```
-用户: [发送任意指令，如「点歌」]
-Bot:  ⚠️ 你还没有注册哦！
-      请发送你的班级和姓名，格式如下：
-      班级 姓名
-      例如：高三1班 张三
-用户: 高三1班 张三
-Bot:  ✅ 注册成功！
-      姓名：张三
-      班级：高三1班
-      现在可以开始点歌啦～ 发送「点歌」即可开始。
-```
-
-### 解析逻辑
-
-```javascript
-// 解析用户发送的注册信息
-function parseRegistration(text) {
-  // 匹配格式：「高三1班 张三」或「高二(3)班 李四」
-  const match = text.match(/^(.+?)\s+(.+)$/);
-  if (!match) return null;
-  return { submitterClass: match[1].trim(), submitterName: match[2].trim() };
-}
-```
-
-### 存储建议
-
-将用户信息以企业微信 userID 为 key 存储：
-
-```javascript
-const userStore = new Map();
-// { wxUserId: { submitterName: "张三", submitterClass: "高三1班" } }
-```
-
----
-
 ## 点歌流程
 
 ### 交互流程
@@ -190,9 +140,8 @@ const submitRes = await fetch(`${API_BASE}/api/song/submit`, {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     link: userLink,
-    submitterName: user.submitterName,
-    submitterClass: user.submitterClass,
     message: userMessage,
+    uid: wxUserId,
   }),
 });
 const submitData = await submitRes.json();
@@ -220,7 +169,7 @@ function parseSongSubmission(text) {
 }
 ```
 
-> **注意**：`message` 是必填字段。如果用户只发了链接没写留言，需要提示补充。
+> **注意**：`message` 是可选字段。如果用户只发了链接没写留言，也可以提交。
 
 ---
 
@@ -256,7 +205,6 @@ Bot:  你选择评论的是：
 Bot:  [调用 POST /comment]
       ✅ 评论成功！
       「这首歌太棒了！每天听心情都好」
-      —— 高二3班 李四
 ```
 
 ### API 调用步骤
@@ -289,15 +237,12 @@ for (const day of data.data.days) {
 
 ```javascript
 const targetSong = songList[userIndex - 1]; // userIndex 是用户输入的序号（1-based）
-const user = userStore.get(wxUserId);
 
 const commentRes = await fetch(`${API_BASE}/api/comment`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     songId: targetSong.songId,
-    authorName: user.submitterName,
-    authorClass: user.submitterClass,
     content: userComment,
   }),
 });

@@ -44,16 +44,13 @@ export default function SongCard({ song, index, showComments = false }) {
           <p className="text-sm text-zinc-400 truncate">{song.artist}</p>
           <p className="text-xs text-zinc-600 truncate mt-0.5">{song.album}</p>
 
-          <div className="flex items-center gap-3 mt-2">
-            <span className="text-xs text-zinc-500">
-              {song.submitterClass} · {song.submitterName}
-            </span>
-            {song.playPosition && (
+          {song.playPosition && (
+            <div className="mt-2">
               <span className="text-xs px-1.5 py-0.5 bg-zinc-800 text-zinc-500 tabular-nums">
                 #{song.playPosition}
               </span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 

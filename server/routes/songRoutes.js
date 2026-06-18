@@ -41,7 +41,7 @@ function getEffectiveCycle() {
 // ──────────────────────────────────────────────
 router.post('/submit', async (req, res) => {
   try {
-    const { link, submitterName, submitterClass, message, uid, preferredPlayDate, preferredPlayPosition } = req.body;
+    const { link, message, uid, preferredPlayDate, preferredPlayPosition } = req.body;
 
     if (!link) {
       return res.status(400).json({
@@ -116,8 +116,6 @@ router.post('/submit', async (req, res) => {
       artist: detail.artist,
       album: detail.album,
       coverUrl: detail.coverUrl,
-      submitterName: submitterName || '',
-      submitterClass: submitterClass || '',
       message: message || '',
       uid: uid || null,
       submitTime: new Date().toISOString(),

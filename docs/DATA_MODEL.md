@@ -51,8 +51,6 @@ interface Song {
   artist: string;          // 歌手（多个用 " / " 分隔）
   album: string;           // 专辑名
   coverUrl: string;        // 封面图片 URL
-  submitterName: string;   // 提交者姓名
-  submitterClass: string;  // 提交者班级
   message: string;         // 留言内容
   uid: string | null;      // 用户唯一标识（用于每人每周限点一首）
   submitTime: string;      // 提交时间（ISO 8601）
@@ -72,8 +70,6 @@ interface Song {
 | artist | string | ✅ | 从网易云 API 获取，多歌手用 ` / ` 分隔 |
 | album | string | ✅ | 从网易云 API 获取 |
 | coverUrl | string | ✅ | 网易云封面图 URL |
-| submitterName | string | ✅ | 由 AstrBot 传入 |
-| submitterClass | string | ✅ | 由 AstrBot 传入 |
 | message | string | ✅ | 提交者留言 |
 | uid | string | ❌ | 用户唯一标识（AstrBot 用户 ID），用于每人每周限点一首 |
 | submitTime | string | ✅ | ISO 8601 格式，由后端生成 |
@@ -104,8 +100,6 @@ pending ──→ approved
 interface Comment {
   id: string;           // 评论唯一 ID（格式：c_<timestamp>_<random>）
   songId: string;       // 关联的网易云歌曲 ID
-  authorName: string;   // 评论者姓名
-  authorClass: string;  // 评论者班级
   content: string;      // 评论内容
   createTime: string;   // 创建时间（ISO 8601）
 }
@@ -117,8 +111,6 @@ interface Comment {
 |------|------|:----:|------|
 | id | string | ✅ | 格式：`c_{Date.now()}_{random6}` |
 | songId | string | ✅ | 关联到 Songs 集合的 songId |
-| authorName | string | ✅ | 由 AstrBot 传入 |
-| authorClass | string | ✅ | 由 AstrBot 传入 |
 | content | string | ✅ | 评论正文 |
 | createTime | string | ✅ | ISO 8601 格式 |
 

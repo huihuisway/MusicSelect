@@ -44,11 +44,7 @@ export default function CommentList({ songId }) {
           transition={{ delay: i * 0.04 }}
           className="bg-zinc-800/20 border border-zinc-800/40 p-3"
         >
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-sm font-medium text-zinc-300">
-              {c.authorName}
-              <span className="text-zinc-600 font-normal ml-1">{c.authorClass}</span>
-            </span>
+          <div className="flex items-center justify-end mb-1.5">
             <span className="text-xs text-zinc-700 tabular-nums">
               {c.createTime?.slice(5, 16).replace('T', ' ')}
             </span>
