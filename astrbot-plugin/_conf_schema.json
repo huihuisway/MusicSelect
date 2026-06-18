@@ -28,5 +28,11 @@
     "type": "string",
     "hint": "管理员的用户 ID，用于执行管理命令（如关闭日期）。留空则无管理员。",
     "default": ""
+  },
+  "message_templates": {
+    "description": "消息模板覆盖（JSON 格式）",
+    "type": "string",
+    "hint": "自定义消息模板的 JSON 字符串。格式：{\"模板名\": \"模板内容\", ...}。留空使用默认模板。使用 /管理 模板 命令查看所有可用模板名。",
+    "default": ""
   }
 }

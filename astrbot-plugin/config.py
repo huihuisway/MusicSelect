@@ -2,6 +2,11 @@
 MusicSelect AstrBot 插件配置
 """
 
+import json
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class Config:
     """插件配置，支持从 AstrBot 配置系统读取"""
@@ -27,6 +32,22 @@ class Config:
         # 管理员 ID（为空则无管理员）
         self.admin_id: str = config.get("admin_id", "")
 
-        # 消息模板覆盖（确保是字典类型）
-        message_templates_raw = config.get("message_templates", {})
-        self.message_templates: dict = message_templates_raw if isinstance(message_templates_raw, dict) else {}
+        # 消息模板覆盖（从 JSON 字符串解析）
+        message_templates_raw = config.get("message_templates", "")
+        self.message_templates: dict = {}
+
+        if message_templates_raw:
+            if isinstance(message_templates_raw, dict):
+                # 已经是字典（可能是从旧版本迁移）
+                self.message_templates = message_templates_raw
+            elif isinstance(message_templates_raw, str) and message_templates_raw.strip():
+                # 是 JSON 字符串，需要解析
+                try:
+                    parsed = json.loads(message_templates_raw)
+                    if isinstance(parsed, dict):
+                        self.message_templates = parsed
+                    else:
+                        logger.warning(f"[Config] message_templates 解析结果不是字典: {type(parsed)}")
+                except json.JSONDecodeError as e:
+                    logger.error(f"[Config] message_templates JSON 解析失败: {e}")
+                    logger.error(f"[Config] 原始值: {message_templates_raw}")

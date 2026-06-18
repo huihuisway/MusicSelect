@@ -8,6 +8,7 @@ MusicSelect musicselect AstrBot 插件
 """
 
 import re
+import json
 import logging
 from typing import Optional
 from datetime import datetime, timedelta
@@ -107,11 +108,20 @@ class MusicSelectPlugin(star.Star):
     def _save_config(self):
         """保存配置到文件（持久化模板修改等）"""
         try:
-            # 更新配置对象中的模板覆盖
-            self.config.message_templates = self.templates.get_overrides()
+            # 更新配置对象中的模板覆盖（转换为 JSON 字符串）
+            templates_dict = self.templates.get_overrides()
+            # 创建一个用于保存的配置字典
+            config_to_save = {
+                "api_base_url": self.config.api_base_url,
+                "timeout": self.config.timeout,
+                "search_limit": self.config.search_limit,
+                "conversation_timeout": self.config.conversation_timeout,
+                "admin_id": self.config.admin_id,
+                "message_templates": json.dumps(templates_dict, ensure_ascii=False) if templates_dict else "",
+            }
             # 保存到文件
             if hasattr(self, 'astrbot') and hasattr(self.astrbot, 'save_config'):
-                self.astrbot.save_config(self, "msicselect", self.config.__dict__)
+                self.astrbot.save_config(self, "msicselect", config_to_save)
                 logger.info("[MusicSelect] 配置已保存到文件")
             else:
                 logger.warning("[MusicSelect] astrbot.save_config 不可用，配置仅保存在内存中")
