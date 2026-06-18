@@ -42,7 +42,15 @@ class TemplateEngine:
         Args:
             overrides: 用户自定义模板覆盖 {key: template_string}
         """
-        self._overrides: Dict[str, str] = overrides or {}
+        # 确保 overrides 是字典类型
+        if overrides is None:
+            self._overrides: Dict[str, str] = {}
+        elif isinstance(overrides, dict):
+            self._overrides: Dict[str, str] = overrides
+        else:
+            logger.warning(f"[TemplateEngine] overrides 参数类型错误: {type(overrides)}，使用空字典")
+            self._overrides: Dict[str, str] = {}
+
         self._cache: Dict[str, str] = {}  # resolved templates cache
         self._build_cache()
 

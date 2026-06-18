@@ -56,7 +56,11 @@ class MusicSelectPlugin(star.Star):
         super().__init__(context, config)
 
         # 初始化配置（config 参数为插件专属配置）
-        self.config = Config(config)
+        try:
+            self.config = Config(config)
+        except Exception as e:
+            logger.error(f"[MusicSelect] 配置初始化失败: {e}")
+            self.config = Config({})
 
         # API 客户端
         self.api = MusicSelectApiClient(
@@ -70,7 +74,11 @@ class MusicSelectPlugin(star.Star):
         )
 
         # 模板引擎
-        self.templates = TemplateEngine(overrides=self.config.message_templates)
+        try:
+            self.templates = TemplateEngine(overrides=self.config.message_templates)
+        except Exception as e:
+            logger.error(f"[MusicSelect] 模板引擎初始化失败: {e}")
+            self.templates = TemplateEngine(overrides={})
 
         logger.info(f"[MusicSelect] 插件已加载，API: {self.config.api_base_url}")
 
