@@ -220,3 +220,39 @@ class MusicSelectApiClient:
             "/song/closed-dates",
             json={"date": date},
         )
+
+    # ========== 管理员跳周 ==========
+
+    async def get_skip_week_status(self) -> dict:
+        """
+        获取跳周状态
+
+        Returns:
+            {skipWeek, isActive, currentWeekStart, isSubmissionOpen}
+        """
+        return await self._request("GET", "/song/admin/skip-week")
+
+    async def activate_skip_week(self, activated_by: str = "") -> dict:
+        """
+        激活跳周
+
+        Args:
+            activated_by: 激活者 ID
+
+        Returns:
+            {weekStart, activatedAt, activatedBy, message}
+        """
+        return await self._request(
+            "POST",
+            "/song/admin/skip-week",
+            json={"activatedBy": activated_by},
+        )
+
+    async def deactivate_skip_week(self) -> dict:
+        """
+        撤销跳周
+
+        Returns:
+            {deactivated, message}
+        """
+        return await self._request("DELETE", "/song/admin/skip-week")

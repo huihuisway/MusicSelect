@@ -2,6 +2,7 @@ import {
   findSongs, findOneSong, addSong, updateSongs,
   countSongs, findArchives, getArchiveWeeks,
   findClosedDates, isDateClosed, addClosedDate, removeClosedDate,
+  getSkipWeek, activateSkipWeek, deactivateSkipWeek,
 } from '../database/db.js';
 import {
   getCurrentCycle, isInSubmissionWindow, getUTC8Now,
@@ -12,6 +13,27 @@ import { downloadAndConvert } from '../utils/songDownloader.js';
 
 import { Router } from 'express';
 const router = Router();
+
+// ──────────────────────────────────────────────
+// 辅助函数：获取有效的周期信息（考虑管理员覆盖）
+// ──────────────────────────────────────────────
+function getEffectiveCycle() {
+  const cycle = getCurrentCycle();
+  const skipWeek = getSkipWeek();
+
+  // 如果有管理员跳周覆盖，使用覆盖的 weekStart
+  if (skipWeek) {
+    return {
+      ...cycle,
+      weekStart: skipWeek.weekStart,
+      submissionOpen: true, // 跳周后立即开放点歌窗口
+      isSkippedByAdmin: true,
+      skipWeekInfo: skipWeek,
+    };
+  }
+
+  return cycle;
+}
 
 // ──────────────────────────────────────────────
 // POST /api/song/submit ─ 提交点歌
@@ -192,7 +214,7 @@ router.get('/list', async (req, res) => {
 // ──────────────────────────────────────────────
 router.get('/current-cycle', async (_req, res) => {
   try {
-    const cycle = getCurrentCycle();
+    const cycle = getEffectiveCycle();
     const { weekStart } = cycle;
     const submitted = countSongs({ weekStart });
     const quota = parseInt(process.env.WEEKLY_QUOTA) || 25;
@@ -339,6 +361,94 @@ router.delete('/closed-dates', async (req, res) => {
       return res.status(404).json({ success: false, code: 404, message: '该日期未关闭' });
     }
     res.json({ success: true, data: { date } });
+  } catch (err) {
+    res.status(500).json({ success: false, code: 500, message: err.message });
+  }
+});
+
+// ──────────────────────────────────────────────
+// GET /api/admin/skip-week ─ 获取跳周状态
+// ──────────────────────────────────────────────
+router.get('/admin/skip-week', async (_req, res) => {
+  try {
+    const skipWeek = getSkipWeek();
+    const effectiveCycle = getEffectiveCycle();
+
+    res.json({
+      success: true,
+      data: {
+        skipWeek,
+        isActive: !!skipWeek,
+        currentWeekStart: effectiveCycle.weekStart,
+        isSubmissionOpen: effectiveCycle.submissionOpen,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, code: 500, message: err.message });
+  }
+});
+
+// ──────────────────────────────────────────────
+// POST /api/admin/skip-week ─ 激活跳周
+// ──────────────────────────────────────────────
+router.post('/admin/skip-week', async (req, res) => {
+  try {
+    const { activatedBy } = req.body;
+
+    // 检查是否已经激活
+    const existing = getSkipWeek();
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        code: 409,
+        message: '跳周已激活',
+        data: existing,
+      });
+    }
+
+    // 计算下一周的 weekStart
+    const now = new Date();
+    const nextMonday = getMonday(now);
+    nextMonday.setUTCDate(nextMonday.getUTCDate() + 7);
+    const nextWeekStart = formatDate(nextMonday);
+
+    // 激活跳周
+    const skipWeek = activateSkipWeek(nextWeekStart, activatedBy || 'unknown');
+
+    res.status(201).json({
+      success: true,
+      data: {
+        ...skipWeek,
+        message: `已跳到下一周（${nextWeekStart}），点歌窗口已开放`,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, code: 500, message: err.message });
+  }
+});
+
+// ──────────────────────────────────────────────
+// DELETE /api/admin/skip-week ─ 撤销跳周
+// ──────────────────────────────────────────────
+router.delete('/admin/skip-week', async (_req, res) => {
+  try {
+    const was = deactivateSkipWeek();
+
+    if (!was) {
+      return res.status(404).json({
+        success: false,
+        code: 404,
+        message: '跳周未激活',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        deactivated: was,
+        message: '已撤销跳周，恢复正常周期',
+      },
+    });
   } catch (err) {
     res.status(500).json({ success: false, code: 500, message: err.message });
   }

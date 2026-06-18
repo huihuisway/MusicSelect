@@ -19,6 +19,9 @@ const defaultData = {
   songArchives: [],
   downloadRecords: [],
   closedDates: [], // [{ date: 'YYYY-MM-DD', weekStart: 'YYYY-MM-DD', reason: '' }]
+  adminOverrides: {
+    skipWeek: null, // { weekStart: 'YYYY-MM-DD', activatedAt: 'ISO', activatedBy: 'user_id' }
+  },
 };
 
 const adapter = new JSONFile(DB_PATH);
@@ -31,6 +34,7 @@ db.data.comments = db.data.comments || [];
 db.data.songArchives = db.data.songArchives || [];
 db.data.downloadRecords = db.data.downloadRecords || [];
 db.data.closedDates = db.data.closedDates || [];
+db.data.adminOverrides = db.data.adminOverrides || { skipWeek: null };
 await db.write();
 
 // --------------- 辅助 ---------------
@@ -144,4 +148,24 @@ export const removeClosedDate = (date) => {
   db.data.closedDates = db.data.closedDates.filter((c) => c.date !== date);
   if (db.data.closedDates.length !== before) save();
   return before - db.data.closedDates.length;
+};
+
+// --------------- Admin Overrides ---------------
+export const getSkipWeek = () => db.data.adminOverrides.skipWeek;
+
+export const activateSkipWeek = (weekStart, activatedBy) => {
+  db.data.adminOverrides.skipWeek = {
+    weekStart,
+    activatedAt: new Date().toISOString(),
+    activatedBy,
+  };
+  save();
+  return db.data.adminOverrides.skipWeek;
+};
+
+export const deactivateSkipWeek = () => {
+  const was = db.data.adminOverrides.skipWeek;
+  db.data.adminOverrides.skipWeek = null;
+  save();
+  return was;
 };

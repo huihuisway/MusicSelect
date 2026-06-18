@@ -208,18 +208,58 @@ class MusicSelectPlugin(star.Star):
                 cycle = await self.api.get_cycle_info()
                 closed = await self.api.get_closed_dates(cycle.get("weekStart", ""))
                 closed_str = "\n    ".join([c["date"] for c in closed]) if closed else "无"
+
+                # 获取跳周状态
+                skip_status = await self.api.get_skip_week_status()
+                if skip_status.get("isActive"):
+                    skip_info = skip_status.get("skipWeek", {})
+                    skip_str = f"已激活（跳到 {skip_info.get('weekStart', '未知')}）"
+                else:
+                    skip_str = "未激活"
             except ApiError:
                 closed_str = "（获取失败）"
+                skip_str = "（获取失败）"
 
             await self._send_text(
                 event,
                 f"🔧 管理面板\n\n"
                 f"📌 管理员 ID：{self.config.admin_id}\n"
-                f"📌 本周关闭日期：\n    {closed_str}\n\n"
+                f"📌 本周关闭日期：\n    {closed_str}\n"
+                f"📌 跳周状态：{skip_str}\n\n"
                 f"💡 命令：\n"
                 f"  /管理 关 MMDD — 关闭指定日期（如 /管理 关 0701）\n"
-                f"  /管理 开 MMDD — 重新开放指定日期"
+                f"  /管理 开 MMDD — 重新开放指定日期\n"
+                f"  /管理 跳周 — 跳到下一周并开放点歌\n"
+                f"  /管理 撤销跳周 — 撤销跳周操作"
             )
+            return
+
+        # 跳周命令
+        if args in ("跳周", "跳"):
+            try:
+                result = await self.api.activate_skip_week(activated_by=user_id)
+                week_start = result.get("weekStart", "未知")
+                await self._send_text(
+                    event,
+                    f"✅ 已跳到下一周（{week_start}）\n"
+                    f"🎉 点歌窗口已开放，用户可以开始点歌了！\n\n"
+                    f"💡 如需撤销，请使用：/管理 撤销跳周"
+                )
+            except ApiError as e:
+                await self._send_text(event, format_api_error(e.code, e.message))
+            return
+
+        # 撤销跳周命令
+        if args in ("撤销跳周", "撤销跳", "取消跳周"):
+            try:
+                result = await self.api.deactivate_skip_week()
+                await self._send_text(
+                    event,
+                    f"✅ 已撤销跳周\n"
+                    f"🔄 恢复正常周期计算"
+                )
+            except ApiError as e:
+                await self._send_text(event, format_api_error(e.code, e.message))
             return
 
         # 关闭/开启 日期（支持 关/开/关闭/开启）
@@ -290,7 +330,9 @@ class MusicSelectPlugin(star.Star):
             "❌ 无法识别的管理命令\n"
             "💡 可用命令：\n"
             "  /管理 关 MMDD — 关闭日期（如 /管理 关 0701）\n"
-            "  /管理 开 MMDD — 开放日期"
+            "  /管理 开 MMDD — 开放日期\n"
+            "  /管理 跳周 — 跳到下一周并开放点歌\n"
+            "  /管理 撤销跳周 — 撤销跳周操作"
         )
 
     # ================================================================
