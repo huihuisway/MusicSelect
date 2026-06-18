@@ -96,6 +96,20 @@ class MusicSelectPlugin(star.Star):
             return event.get_message_str().strip()
         return ""
 
+    def _save_config(self):
+        """保存配置到文件（持久化模板修改等）"""
+        try:
+            # 更新配置对象中的模板覆盖
+            self.config.message_templates = self.templates.get_overrides()
+            # 保存到文件
+            if hasattr(self, 'astrbot') and hasattr(self.astrbot, 'save_config'):
+                self.astrbot.save_config(self, "msicselect", self.config.__dict__)
+                logger.info("[MusicSelect] 配置已保存到文件")
+            else:
+                logger.warning("[MusicSelect] astrbot.save_config 不可用，配置仅保存在内存中")
+        except Exception as e:
+            logger.error(f"[MusicSelect] 保存配置失败: {e}")
+
     def _is_admin(self, user_id: str) -> bool:
         """检查用户是否为管理员"""
         return bool(self.config.admin_id) and user_id == self.config.admin_id
@@ -412,7 +426,8 @@ class MusicSelectPlugin(star.Star):
                 return
 
             if self.templates.update(key, new_template):
-                # TODO: 持久化到配置
+                # 持久化到配置
+                self._save_config()
                 await self._send_text(event, f"✅ 模板 {key} 已更新\n\n预览:\n{self.templates.preview(key)}")
             else:
                 await self._send_text(event, f"❌ 模板更新失败")
@@ -422,9 +437,13 @@ class MusicSelectPlugin(star.Star):
             key = parts[1]
             if key == "全部":
                 self.templates.reset_all()
+                # 持久化到配置
+                self._save_config()
                 await self._send_text(event, "✅ 所有模板已重置为默认值")
             else:
                 if self.templates.reset(key):
+                    # 持久化到配置
+                    self._save_config()
                     await self._send_text(event, f"✅ 模板 {key} 已重置为默认值")
                 else:
                     await self._send_text(event, f"❌ 未知模板: {key}")
