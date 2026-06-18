@@ -7,9 +7,17 @@ import cron from 'node-cron';
 import {
   findSongs, updateSongs, archiveSongs,
   findDownloadRecord, addDownloadRecord,
+  getSkipWeek,
 } from '../database/db.js';
 import { getCurrentCycle, isInSubmissionWindow, formatDate, getMonday } from '../utils/dateUtils.js';
 import { downloadSongsBatch } from '../utils/songDownloader.js';
+
+// 辅助函数：获取有效的 weekStart（考虑管理员跳周覆盖）
+function getEffectiveWeekStart() {
+  const skipWeek = getSkipWeek();
+  if (skipWeek) return skipWeek.weekStart;
+  return getCurrentCycle().weekStart;
+}
 
 /**
  * 任务 1：窗口关闭后自动下载歌曲
@@ -25,7 +33,7 @@ async function autoDownloadSongs() {
   if (day !== 0 || h < 20) return;
   if (isInSubmissionWindow(now)) return; // 窗口仍开放则跳过
 
-  const { weekStart } = getCurrentCycle();
+  const weekStart = getEffectiveWeekStart();
 
   if (findDownloadRecord(weekStart)) {
     console.log(`[cron] ${weekStart} 歌曲已下载，跳过`);

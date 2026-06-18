@@ -215,22 +215,25 @@ def format_cycle_status(cycle_info: dict, stats: dict) -> str:
     格式化周期状态信息
 
     Args:
-        cycle_info: {isSubmissionOpen, submittedCount, remaining, countdown, songsByDay, weekStart, ...}
+        cycle_info: {submissionOpen, submittedCount, remaining, countdown, songsByDay, weekStart, isSkippedByAdmin, ...}
         stats: {weeklyQuota, submittedCount, remaining}
     """
-    is_open = cycle_info.get("isSubmissionOpen", False)
+    is_open = cycle_info.get("submissionOpen", False)
+    is_skipped = cycle_info.get("isSkippedByAdmin", False)
     submitted = stats.get("submittedCount", 0)
     quota = stats.get("weeklyQuota", 25)
     remaining = stats.get("remaining", 0)
 
     countdown = cycle_info.get("countdown", {})
-    remaining_str = countdown.get("remainingStr", "")
-    countdown_type = countdown.get("type", "")
+    remaining_str = countdown.get("text", "")
 
     lines = ["📊 当前状态", ""]
     lines.append(f"🎵 已提交：{submitted}/{quota}（剩余 {remaining} 首）")
 
-    if is_open:
+    if is_skipped:
+        lines.append(f"⏰ {remaining_str}")
+        lines.append(f"🔀 管理员已跳周")
+    elif is_open:
         lines.append(f"⏰ 点歌进行中 | 距离截止：{remaining_str}")
     else:
         lines.append(f"⏰ 点歌未开始 | 距离下次开放：{remaining_str}")

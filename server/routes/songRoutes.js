@@ -29,6 +29,7 @@ function getEffectiveCycle() {
       submissionOpen: true, // 跳周后立即开放点歌窗口
       isSkippedByAdmin: true,
       skipWeekInfo: skipWeek,
+      countdown: { total: 0, hours: 0, minutes: 0, seconds: 0, text: '管理员已开放点歌' },
     };
   }
 
@@ -64,7 +65,7 @@ router.post('/submit', async (req, res) => {
       }
     }
 
-    const { weekStart } = getCurrentCycle();
+    const { weekStart } = getEffectiveCycle();
 
     // 检查日期是否被关闭
     if (preferredPlayDate && isDateClosed(preferredPlayDate)) {
@@ -152,7 +153,7 @@ router.post('/check', async (req, res) => {
     const detail = await getSongDetail(songId);
     if (!detail) return res.status(404).json({ success: false, code: 404, message: '未找到该歌曲' });
 
-    const { weekStart } = getCurrentCycle();
+    const { weekStart } = getEffectiveCycle();
     const exists = !!findOneSong({ songId, weekStart });
     const available = await checkSongUrl(songId);
     const hasSubmittedThisWeek = uid ? countSongs({ weekStart, uid }) >= 1 : false;
@@ -188,7 +189,7 @@ router.get('/search', async (req, res) => {
 router.get('/list', async (req, res) => {
   try {
     const { week, date } = req.query;
-    const { weekStart } = getCurrentCycle();
+    const { weekStart } = getEffectiveCycle();
     const useWeek = week || weekStart;
 
     // 历史周走 archives
@@ -253,7 +254,7 @@ router.get('/current-cycle', async (_req, res) => {
 router.get('/calendar', async (req, res) => {
   try {
     const { week } = req.query;
-    const { weekStart } = getCurrentCycle();
+    const { weekStart } = getEffectiveCycle();
     const useWeek = week || weekStart;
     const songs = findSongs({ weekStart: useWeek });
     const monday = getMonday(new Date(useWeek));
@@ -301,10 +302,11 @@ router.get('/history', async (req, res) => {
 // ──────────────────────────────────────────────
 router.get('/stats', async (_req, res) => {
   try {
-    const { weekStart } = getCurrentCycle();
+    const cycle = getEffectiveCycle();
+    const { weekStart } = cycle;
     const submitted = countSongs({ weekStart });
     const quota = parseInt(process.env.WEEKLY_QUOTA) || 25;
-    res.json({ success: true, data: { weekStart, weeklyQuota: quota, submittedCount: submitted, remaining: quota - submitted, isOpen: isInSubmissionWindow() } });
+    res.json({ success: true, data: { weekStart, weeklyQuota: quota, submittedCount: submitted, remaining: quota - submitted, isOpen: cycle.submissionOpen } });
   } catch (err) {
     res.status(500).json({ success: false, code: 500, message: err.message });
   }

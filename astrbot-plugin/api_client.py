@@ -178,7 +178,7 @@ class MusicSelectApiClient:
         Returns:
             [{weekStart, count}, ...]
         """
-        data = await self._request("GET", "/song/history-weeks")
+        data = await self._request("GET", "/song/history")
         return data.get("weeks", [])
 
     async def get_history(self, week_start: str) -> dict:
@@ -188,7 +188,7 @@ class MusicSelectApiClient:
         Returns:
             {weekStart, songs: [...]}
         """
-        return await self._request("GET", f"/song/history/{week_start}")
+        return await self._request("GET", "/song/history", params={"week": week_start})
 
     # ========== 关闭日期 ==========
 

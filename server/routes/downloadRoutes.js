@@ -1,8 +1,15 @@
-import { findSongs, findOneSong, findDownloadRecord, addDownloadRecord } from '../database/db.js';
+import { findSongs, findOneSong, findDownloadRecord, addDownloadRecord, getSkipWeek } from '../database/db.js';
 import { getCurrentCycle } from '../utils/dateUtils.js';
 import { downloadAndConvert, downloadSongsBatch } from '../utils/songDownloader.js';
 import { Router } from 'express';
 const router = Router();
+
+// 辅助函数：获取有效的 weekStart（考虑管理员跳周覆盖）
+function getEffectiveWeekStart() {
+  const skipWeek = getSkipWeek();
+  if (skipWeek) return skipWeek.weekStart;
+  return getCurrentCycle().weekStart;
+}
 
 // ──────────────────────────────────────────────
 // GET /api/song/download/:songId ─ 下载单首歌曲 MP3
@@ -32,7 +39,7 @@ router.get('/download/:songId', async (req, res) => {
 router.post('/download', async (req, res) => {
   try {
     const { weekStart } = req.body || {};
-    const target = weekStart || getCurrentCycle().weekStart;
+    const target = weekStart || getEffectiveWeekStart();
 
     if (findDownloadRecord(target)) {
       return res.status(409).json({ success: false, code: 409, message: '本周歌曲已下载' });
