@@ -145,7 +145,7 @@ router.post('/check', async (req, res) => {
     const { link, uid } = req.body;
     if (!link) return res.status(400).json({ success: false, code: 400, message: '缺少 link 字段' });
 
-    const songId = parseNeteaseUrl(link);
+    const songId = await parseNeteaseUrl(link);
     if (!songId) return res.status(400).json({ success: false, code: 400, message: '无法解析链接' });
 
     const detail = await getSongDetail(songId);
