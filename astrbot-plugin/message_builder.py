@@ -63,8 +63,17 @@ def format_song_info(song_info: dict) -> str:
     if album:
         lines.append(f"💿 {album}")
     if duration:
-        minutes = duration // 60000 if duration > 1000 else duration // 60
-        seconds = (duration % 60000) // 1000 if duration > 1000 else duration % 60
+        # 网易云 API 返回的 duration 通常是毫秒
+        # 如果值很大（>1000），认为是毫秒；否则认为是秒
+        if duration > 1000:
+            # 毫秒转分钟和秒
+            total_seconds = duration // 1000
+            minutes = total_seconds // 60
+            seconds = total_seconds % 60
+        else:
+            # 已经是秒
+            minutes = duration // 60
+            seconds = duration % 60
         lines.append(f"⏱ {minutes}:{seconds:02d}")
 
     return "\n".join(lines)

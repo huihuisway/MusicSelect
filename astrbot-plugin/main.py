@@ -121,7 +121,7 @@ class MusicSelectPlugin(star.Star):
             }
             # 保存到文件
             if hasattr(self, 'astrbot') and hasattr(self.astrbot, 'save_config'):
-                self.astrbot.save_config(self, "msicselect", config_to_save)
+                self.astrbot.save_config(self, "musicselect", config_to_save)
                 logger.info("[MusicSelect] 配置已保存到文件")
             else:
                 logger.warning("[MusicSelect] astrbot.save_config 不可用，配置仅保存在内存中")

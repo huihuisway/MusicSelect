@@ -11,7 +11,7 @@
 import re
 import logging
 from collections import defaultdict
-from typing import Dict, Optional, List, Any
+from typing import Dict, Optional, List, Any, Tuple
 
 # 支持相对导入和绝对导入
 try:
@@ -136,7 +136,7 @@ class TemplateEngine:
         """获取当前所有覆盖（用于持久化到配置）"""
         return dict(self._overrides)
 
-    def validate(self, key: str, template: str) -> tuple[bool, List[str]]:
+    def validate(self, key: str, template: str) -> Tuple[bool, List[str]]:
         """
         验证模板。
 

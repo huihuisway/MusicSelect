@@ -55,7 +55,7 @@ router.post('/submit', async (req, res) => {
       const now = getUTC8Now();
       const todayStr = formatDate(now);
       const noonToday = new Date(now);
-      noonToday.setUTCHours(12, 0, 0, 0);
+      noonToday.setUTCHours(4, 0, 0, 0);  // UTC 4:00 = 北京时间 12:00
 
       if (preferredPlayDate < todayStr) {
         return res.status(403).json({ success: false, code: 403, message: '不能点过去日期的歌哦' });
@@ -96,7 +96,7 @@ router.post('/submit', async (req, res) => {
       if (playDate !== weekMonday) {
         return res.status(400).json({ success: false, code: 400, message: '播放日期不在本周范围内' });
       }
-      if (preferredPlayPosition < 1 || preferredPlayPosition > 5) {
+      if (preferredPlayPosition != null && (preferredPlayPosition < 1 || preferredPlayPosition > 5)) {
         return res.status(400).json({ success: false, code: 400, message: '播放位置须在 1-5 之间' });
       }
       const existing = countSongs({ weekStart, playDate: preferredPlayDate });
