@@ -80,7 +80,7 @@ router.post('/submit', async (req, res) => {
       return res.status(429).json({ success: false, code: 429, message: '本周点歌名额已满' });
     }
 
-    const songId = parseNeteaseUrl(link);
+    const songId = await parseNeteaseUrl(link);
     if (!songId) {
       return res.status(400).json({ success: false, code: 400, message: '无法解析网易云音乐链接' });
     }

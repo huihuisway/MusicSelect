@@ -144,19 +144,69 @@ export function getOpenCountdown(date = new Date()) {
 
 // ── 网易云链接解析 ─────────────────────────────
 
+// 短链接缓存（避免重复请求）
+const shortUrlCache = new Map();
+
+/**
+ * 展开短链接，获取重定向后的完整 URL
+ * @param {string} shortUrl - 短链接
+ * @returns {Promise<string|null>} 重定向后的 URL，失败返回 null
+ */
+async function expandShortUrl(shortUrl) {
+  // 检查缓存
+  if (shortUrlCache.has(shortUrl)) {
+    return shortUrlCache.get(shortUrl);
+  }
+
+  try {
+    // 使用 fetch 的 redirect: 'manual' 获取重定向位置
+    const response = await fetch(shortUrl, {
+      method: 'HEAD',
+      redirect: 'follow',
+    });
+
+    // response.url 是最终的 URL（经过所有重定向后）
+    const finalUrl = response.url;
+
+    if (finalUrl && finalUrl !== shortUrl) {
+      // 缓存结果（1小时过期）
+      shortUrlCache.set(shortUrl, finalUrl);
+      setTimeout(() => shortUrlCache.delete(shortUrl), 3600000);
+      return finalUrl;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[expandShortUrl] 展开短链接失败:', shortUrl, error.message);
+    return null;
+  }
+}
+
 /**
  * 从网易云音乐链接中提取歌曲 ID
  * @param {string} url
- * @returns {string|null}
+ * @returns {Promise<string|null>}
  *
  * 支持格式：
  *   https://music.163.com/#/song?id=123456
  *   https://music.163.com/song?id=123456
  *   https://music.163.com/song/123456
  *   https://share.163.com/song/123456
+ *   https://163cn.tv/xxxxx (短链接，会自动展开)
  */
-export function parseNeteaseUrl(url) {
+export async function parseNeteaseUrl(url) {
   if (!url || typeof url !== 'string') return null;
+
+  // 检测是否是短链接
+  if (url.includes('163cn.tv')) {
+    const expandedUrl = await expandShortUrl(url);
+    if (expandedUrl) {
+      url = expandedUrl;
+    } else {
+      return null;
+    }
+  }
+
   const patterns = [
     /song\?id=(\d+)/,
     /\/song\/(\d+)/,
